@@ -108,7 +108,14 @@ function createWindow() {
     app.userAgentFallback = USER_AGENT;
     mainWindow.webContents.userAgent = USER_AGENT;
 
-    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    // Depuis Electron 35, les détails du message sont des propriétés de
+    // l'événement ({ level, message, lineNumber, sourceId }) ; les arguments
+    // positionnels sont dépréciés. On lit la forme objet, avec repli sur
+    // l'ancienne signature tant qu'Electron la fournit encore.
+    mainWindow.webContents.on('console-message', (event, _legacyLevel, legacyMessage, legacyLine, legacySourceId) => {
+        const message = event.message ?? legacyMessage;
+        const line = event.lineNumber ?? legacyLine;
+        const sourceId = event.sourceId ?? legacySourceId;
         fs.appendFileSync(path.join(app.getPath('userData'), 'app_error.log'), `[Renderer] ${message} (${sourceId}:${line})\n`);
         console.log(`[Renderer] ${message} (${sourceId}:${line})`);
     });
