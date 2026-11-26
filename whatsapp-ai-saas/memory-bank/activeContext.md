@@ -87,10 +87,10 @@
 - Real-time token usage, latency, and cost tracking dashboard.
 
 ## Active Focus
-- **v1.45.1 — Résolution Lot P0 (MCP / CLI Database & Stdio Cleansing) (+0.0.1)** :
-  - **Auto-résolution DB & SecretStore** : `backend/db.js` et `backend/secretStore.js` résolvent automatiquement le dossier applicatif OS (`%APPDATA%/WaCopilote` sous Windows, macOS `Application Support`, Linux `XDG_CONFIG_HOME`) si présent. Déchiffrement transparent de `master-key.enc` via helper Electron `safeStorage`. Les clés API réelles et contacts applicatifs sont immédiatement partagés par le CLI et le MCP sans configuration manuelle.
-  - **Immunité Stdio & Nettoyage Logs** : Redirection absolue de `console.log` vers `stderr` dans `wacopiloteMcpServer.js` (`startMcpServer`). Substitution systématique de `console.log` vers `console.error` dans tous les scrapers (`googleMapScraper`, `goAfricaScraper`, `annuaireCiScraper`), services, routes et `server.js`.
-  - **220 tests au vert (100% de réussite)** : Exécution de toutes les 25 suites validée. Flux MCP stdio 100% pur JSON-RPC vérifié.
+- **Cadrage de la refonte (2026-11-26)** — `docs/refonte-cadrage.md` :
+  - Décisions : périmètre = cœur WhatsApp + prospection/pipeline + devis/factures + rédacteur/chat multi-agents (studio photo, tâches et boîte à outils retirés) ; canal = automatisation de WhatsApp Web ; forme = application de bureau à cœur métier découplé.
+  - Architecture cible : plus de serveur HTTP local ni de port de débogage ; renderer ↔ cœur (utilityProcess) par MessagePort typé, adaptateur WhatsApp par `webContents.debugger` dans le processus principal ; monorepo TypeScript (`core`, `whatsapp-adapter`, `contracts`, `desktop`, `cli`).
+  - Prochaines étapes : publier la 1.49.1, rétablir la CI, retirer le périmètre abandonné dans la 1.x, puis le socle de la 2.0. Questions ouvertes listées en fin de document.
 
 ## Key Decisions & Context
 - Logo integrated via `public/assets/WaCopilot%20Logo.png`.
