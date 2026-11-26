@@ -60,32 +60,8 @@ const WorkArea = ({ instances, activeId }) => {
 
     // Zustand Global Actions
     const incrementCopilotReplies = useAppStore(state => state.incrementCopilotReplies);
-    const catalogDraft = useAppStore(state => state.catalogDraft);
-    const clearCatalogDraft = useAppStore(state => state.clearCatalogDraft);
     const copilotNotification = useAppStore(state => state.copilotNotification);
     const clearCopilotNotification = useAppStore(state => state.clearCopilotNotification);
-
-    // Listen for incoming Catalog Drafts from the Agent Hub
-    useEffect(() => {
-        if (catalogDraft) {
-            // Send a nicely formatted message to Copilot for copy-pasting
-            setChatHistory(prev => [
-                ...prev,
-                {
-                    id: Date.now().toString(),
-                    role: 'agent',
-                    text: t('catalogDraftReadyMsg'),
-                    proposals: [
-                        `${t('catalogName')} ${catalogDraft.name || ''}`,
-                        catalogDraft.price ? `${t('catalogPrice')} ${catalogDraft.price}` : null,
-                        catalogDraft.code ? `${t('catalogCode')} ${catalogDraft.code}` : null,
-                        `${t('catalogDesc')}${catalogDraft.description || ''}`
-                    ].filter(Boolean)
-                }
-            ]);
-            clearCatalogDraft();
-        }
-    }, [catalogDraft, clearCatalogDraft, t]);
 
     // Listen for incoming system notifications to display in Copilot
     useEffect(() => {

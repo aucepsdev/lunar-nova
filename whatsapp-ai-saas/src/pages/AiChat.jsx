@@ -263,10 +263,6 @@ export default function AiChat() {
                 model: useAppStore.getState().appSettings?.model
             };
 
-            if (selectedAgent.id === 'ella') {
-                bodyData.currentTasks = useAppStore.getState().tasks || [];
-            }
-
             const res = await fetch(API_BASE_URL + '/api/ai/agent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

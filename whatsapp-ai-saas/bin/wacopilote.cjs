@@ -71,14 +71,13 @@ function printHelp() {
   node bin/wacopilote.cjs <commande> [options]
 
 \x1b[1mCOMMANDES DISPONIBLES :\x1b[0m
-  \x1b[36mlist-agents\x1b[0m                      Lister les 26 personas IA configurés
+  \x1b[36mlist-agents\x1b[0m                      Lister les 25 personas IA configurés
   \x1b[36mrun\x1b[0m                              Exécuter un agent IA avec un prompt
   \x1b[36mprospect search\x1b[0m                  Recherche de leads ad-hoc (Google Maps, GoAfrica, Annuaire CI)
   \x1b[36mpipeline create|prospect|save-contacts|generate-messages|organize|cards|run\x1b[0m
                                    Wizard de prospection -> liste -> messages -> planning
   \x1b[36mdocuments list|get|create|update|delete\x1b[0m
                                    Gérer les documents texte générés par l'IA
-  \x1b[36mphoto generate\x1b[0m                  Générer une photo produit/mannequin (persona + image)
   \x1b[36mquotes list|get|create|update|delete|export-pdf\x1b[0m
                                    Gérer les devis (export PDF autonome, via Chromium headless)
   \x1b[36mcontacts list|get|create|update|delete|assign\x1b[0m
@@ -116,7 +115,6 @@ function printHelp() {
   $ wacopilote pipeline run --brief "10 boutiques de vêtements à Abidjan" --auto --list-name "Prospects Abidjan" --segment-name "Mode"
   $ wacopilote pipeline cards --run-id 3 --json
   $ wacopilote documents create --title "Argumentaire" --content "..." --json
-  $ wacopilote photo generate --agent photoshoot --prompt "Robe d'été rouge" --out ./photo.png
   $ wacopilote quotes create --client-name "Boutique X" --data '{"items":[{"description":"Robe","qty":2,"price":15000}]}'
   $ wacopilote quotes export-pdf 5 --out ./devis-5.pdf
   $ wacopilote instances list --json
@@ -126,7 +124,7 @@ function printHelp() {
 }
 
 /**
- * Commande `list-agents` : Liste l'ensemble des 26 personas.
+ * Commande `list-agents` : Liste l'ensemble des 25 personas.
  */
 async function handleListAgents(args) {
     const isJson = args.includes('--json');
@@ -529,76 +527,6 @@ async function handleDocuments(args) {
 }
 
 /**
- * Commande `photo generate` : chaîne persona (prompt structuré) -> génération d'image,
- * écrit les bytes base64 résultants sur disque.
- */
-async function handlePhoto(args) {
-    const subCommand = args[0];
-    if (subCommand !== 'generate') {
-        console.error(`\x1b[31mSous-commande 'photo' inconnue : '${subCommand}'. Utilisez 'photo generate'.\x1b[0m`);
-        process.exit(1);
-    }
-    const opts = parseNamedArgs(args.slice(1));
-    const isJson = opts.json === true;
-    const agentId = opts.agent || 'photoshoot';
-    let prompt = opts.prompt || (await readStdin());
-
-    if (!prompt) {
-        console.error(`\x1b[31mErreur : --prompt <texte> est obligatoire (ou via stdin).\x1b[0m`);
-        process.exit(1);
-    }
-
-    try {
-        await db.initDB();
-        const aiController = require('../backend/aiController');
-
-        const agentResult = await aiController.chatWithAgent(agentId, prompt, null, null, 'json');
-        const structuredPrompt = (agentResult && agentResult.response) || prompt;
-
-        const generationResponse = await aiController.generateImage(
-            structuredPrompt,
-            opts['aspect-ratio'] || null,
-            null,
-            null,
-            null,
-            opts.provider || null,
-            opts.model || null
-        );
-
-        if (generationResponse.error) {
-            throw new Error(generationResponse.error);
-        }
-
-        let outPath = null;
-        if (opts.out) {
-            fs.writeFileSync(opts.out, Buffer.from(generationResponse.imageBytes, 'base64'));
-            outPath = path.resolve(opts.out);
-        }
-
-        if (isJson) {
-            console.log(JSON.stringify({
-                success: true,
-                agent: agentId,
-                structuredPrompt,
-                outPath,
-                imageBytes: outPath ? undefined : generationResponse.imageBytes
-            }, null, 2));
-        } else if (outPath) {
-            console.log(`\x1b[32mImage générée et enregistrée : ${outPath}\x1b[0m`);
-        } else {
-            console.log(generationResponse.imageBytes);
-        }
-    } catch (err) {
-        if (isJson) {
-            console.error(JSON.stringify({ success: false, error: err.message }, null, 2));
-        } else {
-            console.error(`\x1b[31mErreur de génération photo : ${err.message}\x1b[0m`);
-        }
-        process.exit(1);
-    }
-}
-
-/**
  * Commande `quotes` : CRUD sur les devis + export PDF (Chromium headless
  * autonome, voir invoiceService.renderPdf).
  */
@@ -773,11 +701,6 @@ async function main() {
 
     if (command === 'documents') {
         await handleDocuments(rawArgs.slice(1));
-        return;
-    }
-
-    if (command === 'photo') {
-        await handlePhoto(rawArgs.slice(1));
         return;
     }
 

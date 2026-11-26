@@ -87,13 +87,3 @@ export function buildAgentActivity(conversations) {
         .sort((a, b) => b.messages - a.messages)
         .slice(0, 8);
 }
-
-export function buildTaskStats(tasks) {
-    const todo = (tasks || []).filter(t => t.status === 'todo').length;
-    const inProgress = (tasks || []).filter(t => t.status === 'in-progress').length;
-    const completed = (tasks || []).filter(t => t.status === 'completed').length;
-    const total = todo + inProgress + completed;
-    const byTag = {};
-    (tasks || []).forEach(t => { byTag[t.tag] = (byTag[t.tag] || 0) + 1; });
-    return { todo, inProgress, completed, total, byTag };
-}

@@ -17,7 +17,10 @@ const placeholders = (value) => (String(value).match(/\{\{?\w+\}\}?/g) || []).so
 describe('i18n — parité des quatre locales (P2-1)', () => {
     it('fr, en, es et ar exposent exactement le même jeu de clés', () => {
         const reference = Object.keys(locales.fr).sort();
-        expect(reference.length).toBeGreaterThan(1000);
+        // Garde-fou contre un fichier tronqué ou mal chargé, pas un objectif :
+        // 827 clés depuis le retrait du studio photo, des tâches et de la
+        // boîte à outils (1062 auparavant).
+        expect(reference.length).toBeGreaterThan(800);
         for (const lang of ['en', 'es', 'ar']) {
             expect(Object.keys(locales[lang]).sort()).toEqual(reference);
         }

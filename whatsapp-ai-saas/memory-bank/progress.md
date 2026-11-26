@@ -1,6 +1,7 @@
 # Project Progress: WaCopilote
 
 ## Completed Milestones
+- [x] **Retrait du studio photo, des tâches et de la boîte à outils (2026-11-26, non publié — v1.50.0)** : premier volet du périmètre de `docs/refonte-cadrage.md`. Environ 6 000 lignes et 11 Mo d'images retirés, 235 clés i18n par langue, outil MCP `generate_photo`, commande CLI `photo`, persona `photoshoot`. 30 suites, 287 tests réussis / 3 ignorés ; E2E 5/5.
 - [x] **Correctifs de l'audit (v1.49.1, 2026-11-26)** — PR #1 à #6 fusionnées :
   - S1 exécution de commandes fermée, S3/S4 contenu tiers hors des agents locaux et environnement minimal des CLI, S5 mises à jour vérifiées par SHA-256, D1 enregistrement des agents, S9 dépendances (0 vulnérabilité en production) et Dependabot, S6 Electron 45.3.1.
   - 31 suites, 290 tests réussis / 3 ignorés (+32) ; ESLint 0 ; build OK ; E2E Playwright 5/5 sous Electron 45, dans un dossier de données isolé.

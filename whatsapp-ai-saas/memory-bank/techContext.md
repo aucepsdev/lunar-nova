@@ -11,7 +11,7 @@
   - NVIDIA NIM (Llama 3, Gemma, Qwen, DeepSeek)
   - OpenRouter API
   - Ollama (Local LLM inference)
-  - Together AI (Qwen Image Generation)
+  - Together AI (Llama 3.2 Vision, chat only — image generation removed with the photo studio)
 - **Internationalization**: i18next & react-i18next
 - **Testing & Quality Assurance**: Vitest 4, Testing Library, ESLint 9
 
@@ -29,7 +29,7 @@
 │   └── db.js           # SQLite database schema & migrations (wp_pending_actions, etc.)
 ├── src/                # React 19 Frontend App (App Router / Vite)
 │   ├── components/     # UI Components (CliAgentBridgeSettings, Radix UI, Lucide React)
-│   ├── pages/          # View Pages (Settings, Dashboard, Agents, Photo Studio, Prospection)
+│   ├── pages/          # View Pages (Settings, Dashboard, AI Chat, Prospection, Quotes)
 │   ├── store.js        # Zustand global store (persisté via IndexedDB)
 │   └── services/       # API Client services
 ├── public/             # Static assets (Logos, icons, default assets)

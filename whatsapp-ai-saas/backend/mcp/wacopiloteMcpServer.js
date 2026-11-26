@@ -9,7 +9,7 @@ const pkg = require('../../package.json');
 const MCP_TOOLS = [
     {
         name: 'list_agents',
-        description: 'Lister l\'ensemble des 26 personas IA configurés dans WaCopilote avec leurs rôles, compétences et formats attendus.',
+        description: 'Lister l\'ensemble des 25 personas IA configurés dans WaCopilote avec leurs rôles, compétences et formats attendus.',
         inputSchema: {
             type: 'object',
             properties: {},
@@ -206,21 +206,6 @@ const MCP_TOOLS = [
             type: 'object',
             properties: { id: { type: 'number', description: 'Identifiant du document' } },
             required: ['id']
-        }
-    },
-    {
-        name: 'generate_photo',
-        description: 'Générer une photo (produit ou mannequin) : enchaîne la persona photoshoot/creative (prompt structuré) puis la génération d\'image, et retourne les bytes base64 du résultat.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                agent: { type: 'string', description: "Persona à utiliser : 'photoshoot' (défaut, mode) ou 'creative' (produit)" },
-                prompt: { type: 'string', description: 'Description de la photo souhaitée' },
-                aspectRatio: { type: 'string', description: "Ratio (ex: '1:1', '4:5', '16:9')" },
-                provider: { type: 'string', description: 'Fournisseur optionnel (gemini, openai/nvidia)' },
-                model: { type: 'string', description: 'Modèle image optionnel spécifique' }
-            },
-            required: ['prompt']
         }
     },
     {
@@ -579,23 +564,6 @@ async function handleToolCall(name, args) {
             await db.initDB();
             const documentsService = require('../services/documentsService');
             return await documentsService.deleteDocument(id);
-        }
-
-        case 'generate_photo': {
-            const { agent, prompt, aspectRatio, provider, model } = args || {};
-            if (!prompt) throw new Error("L'argument 'prompt' est obligatoire.");
-            await db.initDB();
-            const aiController = require('../aiController');
-            const agentId = agent || 'photoshoot';
-            const agentResult = await aiController.chatWithAgent(agentId, prompt, null, null, 'json');
-            const structuredPrompt = (agentResult && agentResult.response) || prompt;
-            const generationResponse = await aiController.generateImage(
-                structuredPrompt, aspectRatio || null, null, null, null, provider || null, model || null
-            );
-            if (generationResponse.error) {
-                throw new Error(generationResponse.error);
-            }
-            return { agent: agentId, structuredPrompt, imageBytes: generationResponse.imageBytes };
         }
 
         case 'list_quotes': {
