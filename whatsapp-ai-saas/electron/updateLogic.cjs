@@ -33,24 +33,108 @@ function parseReleaseTag(tag) {
     return String(tag || '').replace(/^v/i, '');
 }
 
+// Dépôt des releases. Toute URL de téléchargement doit en provenir.
+const RELEASES_OWNER = 'auceps-dev-team';
+const RELEASES_REPO = 'wacopilote-releases';
+
+// Installeur Windows attendu : l'artefact NSIS (build.nsis.artifactName dans
+// package.json, « ${productName}_Setup.${ext} »). C'est le seul que l'updater
+// sait installer en silencieux (option /S). Une release peut contenir d'autres
+// .exe — la 1.49.0 publie aussi l'installeur Inno Setup « WaCopilote.1.49.0.exe »,
+// que /S ne rend pas silencieux et qui installe ailleurs : prendre le premier
+// .exe venu, comme auparavant, choisissait celui-là.
+const WINDOWS_INSTALLER_NAME = 'WaCopilote_Setup.exe';
+
 /**
  * Sélectionne l'asset de mise à jour correspondant à la plateforme courante.
- * Le canal Windows (installeur NSIS .exe) reste le seul avec installation
- * silencieuse ; macOS et Linux reçoivent l'artefact adapté (.dmg/.zip et
- * .AppImage/.deb) et l'ouvrent pour installation manuelle guidée.
+ * Windows : l'installeur NSIS désigné par son nom, et lui seul. macOS et Linux
+ * reçoivent l'artefact adapté (.dmg/.zip et .AppImage/.deb) et l'ouvrent pour
+ * une installation manuelle guidée.
  */
 function pickAssetForPlatform(assets, platform = process.platform) {
+    const list = (assets || []).filter(a => a && a.name);
+    if (platform === 'win32') {
+        const found = list.find(a => a.name.toLowerCase() === WINDOWS_INSTALLER_NAME.toLowerCase());
+        return { asset: found || null, platform };
+    }
     const patterns = {
-        win32: ['.exe'],
         darwin: ['.dmg', '.zip'],
-        linux: ['.AppImage', '.appimage', '.deb'],
+        linux: ['.appimage', '.deb'],
     };
-    const wanted = patterns[platform] || [];
-    for (const ext of wanted) {
-        const found = (assets || []).find(a => a.name && a.name.toLowerCase().endsWith(ext.toLowerCase()));
+    for (const ext of patterns[platform] || []) {
+        const found = list.find(a => a.name.toLowerCase().endsWith(ext));
         if (found) return { asset: found, platform };
     }
     return { asset: null, platform };
 }
 
-module.exports = { compareVersions, parseReleaseTag, pickAssetForPlatform };
+/**
+ * Vrai si l'URL désigne un fichier de release du dépôt officiel, en HTTPS.
+ * Auparavant, tout chemin sur github.com ou *.githubusercontent.com était
+ * accepté, quel que soit le dépôt.
+ */
+function isTrustedReleaseDownloadUrl(url) {
+    try {
+        const u = new URL(url);
+        return u.protocol === 'https:'
+            && u.hostname === 'github.com'
+            && !u.username && !u.password
+            && u.pathname.startsWith(`/${RELEASES_OWNER}/${RELEASES_REPO}/releases/download/`);
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Extrait l'empreinte SHA-256 (hex minuscule) du champ `digest` qu'expose
+ * l'API GitHub pour chaque asset (« sha256:<64 hex> »). Null si absente ou
+ * dans un autre format — les assets téléversés avant mi-2025 n'en ont pas.
+ */
+function parseSha256Digest(digest) {
+    const match = /^sha256:([0-9a-f]{64})$/i.exec(String(digest || ''));
+    return match ? match[1].toLowerCase() : null;
+}
+
+/**
+ * Compare un fichier téléchargé à ce qu'annonce la release.
+ * @returns {string|null} null si conforme, sinon la raison du refus.
+ */
+function checkDownloadedFile(actual, expected) {
+    if (!expected || !expected.sha256) {
+        return 'Aucune empreinte de référence : installation refusée.';
+    }
+    if (typeof expected.size === 'number' && expected.size > 0 && actual.size !== expected.size) {
+        return `Taille inattendue (${actual.size} octets au lieu de ${expected.size}).`;
+    }
+    if (String(actual.sha256 || '').toLowerCase() !== expected.sha256) {
+        return 'Empreinte SHA-256 différente de celle publiée avec la release.';
+    }
+    return null;
+}
+
+/** Calcule l'empreinte SHA-256 (hex) et la taille d'un fichier. */
+function hashFile(filePath) {
+    const fs = require('fs');
+    const crypto = require('crypto');
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        let size = 0;
+        fs.createReadStream(filePath)
+            .on('data', (chunk) => { hash.update(chunk); size += chunk.length; })
+            .on('error', reject)
+            .on('end', () => resolve({ sha256: hash.digest('hex'), size }));
+    });
+}
+
+module.exports = {
+    RELEASES_OWNER,
+    RELEASES_REPO,
+    WINDOWS_INSTALLER_NAME,
+    compareVersions,
+    parseReleaseTag,
+    pickAssetForPlatform,
+    isTrustedReleaseDownloadUrl,
+    parseSha256Digest,
+    checkDownloadedFile,
+    hashFile
+};
