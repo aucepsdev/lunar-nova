@@ -1,6 +1,9 @@
 # Project Progress: WaCopilote
 
 ## Completed Milestones
+- [x] **Correctifs de l'audit (v1.49.1, 2026-11-26)** — PR #1 à #6 fusionnées :
+  - S1 exécution de commandes fermée, S3/S4 contenu tiers hors des agents locaux et environnement minimal des CLI, S5 mises à jour vérifiées par SHA-256, D1 enregistrement des agents, S9 dépendances (0 vulnérabilité en production) et Dependabot, S6 Electron 45.3.1.
+  - 31 suites, 290 tests réussis / 3 ignorés (+32) ; ESLint 0 ; build OK ; E2E Playwright 5/5 sous Electron 45, dans un dossier de données isolé.
 - [x] **Audit complet avant refonte (2026-11-26, sur v1.49.0)** — `docs/audit.md` :
   - 40 constats (2 critiques, 11 élevés, 20 moyens, 7 faibles). Critiques : exécution de commandes arbitraires via `/api/cli/run-external` (liste blanche incluant node/python/npx/curl), port CDP 8315 ouvert en production.
   - Deux bugs reproduits sur base en mémoire : la mise à jour d'un agent personnalisé échoue (`$n` réutilisés dans l'upsert), `PRAGMA foreign_keys` inactif.

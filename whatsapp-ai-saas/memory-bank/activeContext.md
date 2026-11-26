@@ -1,5 +1,14 @@
 # Active Context: WaCopilote
 
+- **v1.49.1** — Six correctifs de l'audit avant refonte (+0.0.1), livrés en PR #1 à #6 (fusionnées le 2026-11-26) :
+  - **S1** : liste fermée `ALLOWED_COMMANDS` (gemini, gemini-cli, claude, aider, ollama), plus extensible par réglage ; `/api/cli/run-external` et le mode « external » de `/api/cli/test-bridge` supprimés ; `PUT /api/settings` ignore `allowed_cli_commands`.
+  - **S3/S4** : `chatWithAgent(..., { untrustedInput: true })` exclut les canaux CLI et MCP (réponse aux commandes WhatsApp, brouillons du pipeline) ; `buildChildEnv` ne transmet aux processus lancés qu'une liste fermée de variables plus leurs propres identifiants (plus jamais `WACOPILOTE_MASTER_KEY`).
+  - **S5** : l'updater ne télécharge que l'asset retenu par le processus principal (dépôt officiel, empreinte SHA-256 du champ `digest` de l'API GitHub), revérifie l'empreinte avant de lancer l'installeur et choisit `WaCopilote_Setup.exe` (NSIS) par son nom.
+  - **D1** : upsert des agents en `excluded.<colonne>` ; garde-fou `sqlPlaceholders.test.js` contre la réutilisation d'un marqueur `$n`.
+  - **S9/S6** : 0 vulnérabilité en production ; Dependabot ; Electron 45.3.1 (Chromium 156, Node 24.22.2). Le binaire Electron se télécharge désormais par `npx install-electron`.
+  - **E2E** : le smoke test tourne dans un `--user-data-dir` jetable (il ouvrait le profil réel) et vérifie une vraie réponse HTTP du backend.
+  - **Suite** : 31 suites, 290 réussis / 3 ignorés ; ESLint 0 ; build OK ; E2E 5/5 sous Electron 45.
+  - **À faire** : publier la release 1.49.1 avec le seul installeur NSIS (l'updater des clients 1.49.0 prend le premier `.exe`) ; migrer `safeStorage` vers l'API asynchrone avant Electron 46 ; la CI GitHub Actions n'a jamais tourné sur ce dépôt.
 - **v1.49.0** — Retrait du module WordPress & recentrage produit (+0.1.0) :
   - **Périmètre supprimé** : `backend/routes/wordpress.js`, `backend/services/wordpressService.js`, `backend/agents/personas/wordpress_agent.js`, `src/pages/WordPressBridge.jsx`, `src/components/wordpress/` (9 composants), `wordpress-plugin/` (plugin GPL-2.0 + archive v2.0.0) et les deux documents de conception du pont dans `docs/`.
   - **Points de raccordement fermés** : montage `/api/wp` (et le middleware `multer` qui ne servait qu'à lui — dépendance désinstallée), 7 outils MCP (`create_product_proposal` + les 6 `wordpress_*`, soit 40 → 33), commande CLI `wordpress`, route `/wordpress` et entrée de barre latérale, 127 clés i18n par langue (× 4).
