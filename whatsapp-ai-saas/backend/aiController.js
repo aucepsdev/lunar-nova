@@ -259,6 +259,5 @@ module.exports = {
     chatWithAgent,
     generateImage,
     listModels,
-    classifyOrderIntent,
-    delegateToExternalCli: (options) => require('./services/externalAgentRunner').executeExternalCli(options)
+    classifyOrderIntent
 };
