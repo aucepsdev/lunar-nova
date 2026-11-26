@@ -38,7 +38,6 @@ const useAppStore = create(
         (set, get) => ({
             // --- Shared Data ---
             activeWhatsAppContext: null,
-            catalogDraft: null,
             invoiceDraft: null,
 
             // Phase 21: Global Intelligent Order Listener (IOL) State
@@ -61,14 +60,6 @@ const useAppStore = create(
             appNotification: null,
             updateAvailable: null, // Stores update object if available
             setUpdateAvailable: (status) => set({ updateAvailable: status }),
-            
-            aiQuota: {
-                hasCustomKey: false,
-                imageUsed: 0,
-                imageLimit: 40,
-                resetDate: ''
-            },
-
 
             // --- WA Analysis (persisted across route changes, reset each session) ---
             waAnalysis: {
@@ -98,8 +89,6 @@ const useAppStore = create(
             setInvoiceDraft: (draft) => set({ invoiceDraft: draft }),
             clearInvoiceDraft: () => set({ invoiceDraft: null }),
 
-            tasks: [],
-
             userProfile: {
                 isAuthenticated: false,
                 authMethod: null,
@@ -121,11 +110,6 @@ const useAppStore = create(
                 allowAiRead: true,
                 promptFormat: 'json',
                 hasCompletedOnboarding: false,
-                // Masquage volontaire du bandeau de quota par l'utilisateur.
-                // Persisté (appSettings est conservé par partialize) — remplace
-                // l'ancien hack qui réécrivait aiQuota.imageLimit à 99999 dans
-                // l'état persisté, contaminant les sessions suivantes.
-                dismissQuotaBanner: false,
                 mainMenuOrder: [],
                 // Identifiants des onglets masqués dans la barre latérale.
                 // Le masquage n'est que visuel : les routes restent accessibles
@@ -138,23 +122,19 @@ const useAppStore = create(
 
             aiChatConversations: {},
             aiChatSessions: {},
-            agentHistory: [],
 
             // --- Invoice Builder (Phase 18) ---
             invoices: [],
 
             // --- Available AI Models ---
-            availableModels: { chat: [], image: [] },
+            availableModels: { chat: [] },
             setAvailableModels: (models) => set({ availableModels: models }),
 
             // --- Backend Settings (provider, models, API keys) ---
-            // Synced from GET /api/settings and persisted in IndexedDB
-            // so all pages (PhotoShoot, AgentsHub, etc.) can read them without
-            // re-fetching on each mount.
+            // Synced from GET /api/settings so every page can read the current
+            // provider and models without re-fetching on each mount.
             backendSettings: {
                 default_ai_provider: 'gemini',
-                default_image_provider: 'openai', // dédié à la génération d'images (Together AI/NVIDIA)
-                default_image_model: '',
                 openai_base_url: 'https://integrate.api.nvidia.com/v1',
                 // other keys are populated after fetch
             },
@@ -174,11 +154,6 @@ const useAppStore = create(
             })),
 
             setActiveWhatsAppContext: (context) => set({ activeWhatsAppContext: context }),
-            setCatalogDraft: (draft) => set({ catalogDraft: draft }),
-            clearCatalogDraft: () => set({ catalogDraft: null }),
-
-            setPendingEditImage: (img) => set({ pendingEditImage: img }),
-            clearPendingEditImage: () => set({ pendingEditImage: null }),
 
             setCopilotNotification: (msg) => set({ copilotNotification: msg }),
             clearCopilotNotification: () => set({ copilotNotification: null }),
@@ -189,20 +164,6 @@ const useAppStore = create(
             },
             clearAppNotification: () => set({ appNotification: null }),
 
-            fetchAiQuota: async () => {
-                try {
-                    const res = await fetch(API_BASE_URL + '/api/settings/quota');
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    if (data.status === 'success') {
-                        set({ aiQuota: data.data });
-                    }
-                } catch (e) {
-                    if (e?.name !== 'AbortError') {
-                        console.warn('[Store] Failed to fetch AI Quota (backend offline):', e?.message || e);
-                    }
-                }
-            },
 
 
             setInstances: (newInstances) => set({ instances: newInstances }),
@@ -231,7 +192,6 @@ const useAppStore = create(
             fetchGlobalModels: async () => {
                 const state = get();
                 const chatProvider  = state.backendSettings.default_ai_provider  || 'gemini';
-                const imageProvider = state.backendSettings.default_image_provider || chatProvider;
 
                 let apiKey = undefined;
                 let baseURL = undefined;
@@ -253,47 +213,25 @@ const useAppStore = create(
                     const chatData = await chatRes.json();
 
                     let newChat = [];
-                    let newImage = [];
 
                     if (chatData.status === 'success' && chatData.models) {
                         if (chatData.models.chat) {
                             newChat = chatData.models.chat;
-                            newImage = chatData.models.image || [];
                         } else if (Array.isArray(chatData.models)) {
                             newChat = chatData.models;
                         }
                     }
 
-                    // 2. Si imageProvider ≠ chatProvider, fetch les modèles image séparément
-                    if (imageProvider && imageProvider !== chatProvider) {
-                        try {
-                            const imgRes = await fetch(`${API_BASE_URL}/api/ai/models`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ provider: imageProvider })
-                            });
-                            if (imgRes.ok) {
-                                const imgData = await imgRes.json();
-                                if (imgData.status === 'success' && imgData.models?.image) {
-                                    newImage = imgData.models.image;
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('[Store] Failed to fetch image models:', e);
-                        }
-                    }
-
                     // Sécurité additionnelle : nettoyer les emojis résiduels des noms
                     const cleanName = (str) => (str || '').replace(/^[\u2700-\u27BF\u1F000-\u1F9FF\u2600-\u26FF]\s*/, '');
-                    newChat  = newChat.map(m => ({ ...m, name: cleanName(m.name) }));
-                    newImage = newImage.map(m => ({ ...m, name: cleanName(m.name) }));
+                    newChat = newChat.map(m => ({ ...m, name: cleanName(m.name) }));
 
-                    set({ availableModels: { chat: newChat, image: newImage } });
+                    set({ availableModels: { chat: newChat } });
                 } catch (e) {
                     if (e?.name !== 'AbortError') {
                         console.warn('[Store] Failed to fetch global models (backend offline):', e?.message || e);
                     }
-                    set({ availableModels: { chat: [], image: [] } });
+                    set({ availableModels: { chat: [] } });
                 }
             },
 
@@ -364,38 +302,6 @@ const useAppStore = create(
                 }
             })),
 
-            addAgentHistory: (historyItem) => set((state) => {
-                const MAX_HISTORY = 20;
-                const updated = [historyItem, ...state.agentHistory];
-                return { agentHistory: updated.slice(0, MAX_HISTORY) };
-            }),
-
-            removeAgentHistory: (historyId) => set((state) => ({
-                agentHistory: state.agentHistory.filter(h => h.id !== historyId)
-            })),
-
-            // --- Task Management Actions ---
-            addTask: (task) => set((state) => ({
-                tasks: [...state.tasks, {
-                    description: '',
-                    attachments: [],
-                    annotations: '',
-                    ...task,
-                    id: Date.now().toString()
-                }]
-            })),
-
-            updateTaskStatus: (taskId, newStatus) => set((state) => ({
-                tasks: state.tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t)
-            })),
-
-            editTask: (taskId, updatedData) => set((state) => ({
-                tasks: state.tasks.map(t => t.id === taskId ? { ...t, ...updatedData } : t)
-            })),
-
-            deleteTask: (taskId) => set((state) => ({
-                tasks: state.tasks.filter(t => t.id !== taskId)
-            })),
 
             // --- Invoice Actions (Phase 18) ---
             // Migrées vers le backend (table `quotes`) pour être lisibles/pilotables
@@ -455,7 +361,16 @@ const useAppStore = create(
             // that should be re-evaluated fresh on each app start from GitHub API.
             // Persisting it caused the stale update banner to persist even on the latest version.
             partialize: (state) => {
-                const { waAnalysis, updateAvailable, backendSettings, availableModels, ...rest } = state;
+                // Les clés du second groupe appartiennent aux modules retirés
+                // (tâches, studio photo, quota d'images) : une base IndexedDB
+                // créée par une version antérieure les contient encore, et la
+                // réhydratation les remet dans l'état. Les exclure ici les fait
+                // disparaître du stockage à la première écriture.
+                const {
+                    waAnalysis, updateAvailable, backendSettings, availableModels,
+                    tasks, agentHistory, catalogDraft, pendingEditImage, aiQuota,
+                    ...rest
+                } = state;
                 return rest;
             },
         }

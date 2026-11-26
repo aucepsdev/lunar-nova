@@ -10,23 +10,17 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const AdvancedAnalytics = React.lazy(() => import('./pages/AdvancedAnalytics'));
-const AgentsHub = React.lazy(() => import('./pages/AgentsHub'));
 const AgentPipeline = React.lazy(() => import('./pages/AgentPipeline'));
-const TasksMap = React.lazy(() => import('./pages/TasksMap'));
 
 const InvoiceBuilder = React.lazy(() => import('./pages/InvoiceBuilder'));
 const Profile = React.lazy(() => import('./pages/Profile'));
-const ToolsBox = React.lazy(() => import('./pages/ToolsBox'));
 const Settings = React.lazy(() => import('./pages/Settings'));
-const PhotoShoot = React.lazy(() => import('./pages/PhotoShoot'));
 const AgentManager = React.lazy(() => import('./pages/AgentManager'));
 const Support = React.lazy(() => import('./pages/Support'));
 const AiChat = React.lazy(() => import('./pages/AiChat'));
 
 const AiWriter = React.lazy(() => import('./pages/AiWriter'));
 const MyDocuments = React.lazy(() => import('./pages/MyDocuments'));
-const ImageGeneration = React.lazy(() => import('./pages/ImageGeneration'));
-const ImageWorkspace = React.lazy(() => import('./components/image-editor/ImageWorkspace').then(m => ({ default: m.ImageWorkspace })));
 
 // WhatsApp Plugin Pages (Phase 13)
 const ContactLists = React.lazy(() => import('./pages/whatsapp/ContactLists'));
@@ -54,14 +48,11 @@ function AppContent() {
   const navigate = useNavigate();
 
   const appSettings = useAppStore(state => state.appSettings) || { theme: 'light', language: 'en' };
-  const updateSettings = useAppStore(state => state.updateSettings);
   const appNotification = useAppStore(state => state.appNotification);
   const { i18n, t } = useTranslation();
 
   const updateAvailable = useAppStore(state => state.updateAvailable);
   const setUpdateAvailable = useAppStore(state => state.setUpdateAvailable);
-  const aiQuota = useAppStore(state => state.aiQuota);
-  const fetchAiQuota = useAppStore(state => state.fetchAiQuota);
   const fetchAndSyncBackendSettings = useAppStore(state => state.fetchAndSyncBackendSettings);
   const fetchGlobalModels = useAppStore(state => state.fetchGlobalModels);
   const fetchInvoices = useAppStore(state => state.fetchInvoices);
@@ -130,12 +121,11 @@ function AppContent() {
       }
     };
     initUpdateUX();
-    fetchAiQuota();
     fetchAndSyncBackendSettings().then(() => {
       fetchGlobalModels();
     });
     fetchInvoices();
-  }, [setUpdateAvailable, fetchAiQuota, fetchAndSyncBackendSettings, fetchGlobalModels, fetchInvoices]);
+  }, [setUpdateAvailable, fetchAndSyncBackendSettings, fetchGlobalModels, fetchInvoices]);
 
 
   const handleAddInstance = () => {
@@ -226,39 +216,6 @@ function AppContent() {
           </div>
         )}
 
-        {/* Quota Warning Banner */}
-        {!aiQuota.hasCustomKey && !appSettings.dismissQuotaBanner && aiQuota.imageUsed >= aiQuota.imageLimit * 0.8 && (
-          <div className={`fixed bottom-6 right-6 z-[80] max-w-sm w-full animate-in slide-in-from-right-10 duration-500`}>
-             <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border-l-4 ${aiQuota.imageUsed >= aiQuota.imageLimit ? 'border-red-500' : 'border-orange-500'} p-4 flex gap-4 items-start`}>
-                <div className={`size-10 rounded-xl flex-shrink-0 flex items-center justify-center ${aiQuota.imageUsed >= aiQuota.imageLimit ? 'bg-red-50/50 text-red-600' : 'bg-orange-50/50 text-orange-600'}`}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                    {aiQuota.imageUsed >= aiQuota.imageLimit ? t('quotaExceededTitle') : t('quotaWarningTitle')}
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                    {aiQuota.imageUsed >= aiQuota.imageLimit ? t('quotaExceededDesc') : t('quotaWarningDesc', { used: aiQuota.imageUsed, limit: aiQuota.imageLimit })}
-                  </p>
-                  <button 
-                    onClick={() => navigate('/settings')}
-                    className="mt-3 text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
-                  >
-                    {t('configureMyKey')}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
-                  </button>
-                </div>
-                <button 
-                  onClick={() => updateSettings({ dismissQuotaBanner: true })}
-                  className="text-gray-400 hover:text-gray-600"
-                  title={t('dismissQuotaBanner')}
-                >
-                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-             </div>
-          </div>
-        )}
-
         <div className="flex h-full w-full gap-4 max-w-[1800px] mx-auto relative z-10">
 
           <Sidebar
@@ -301,19 +258,13 @@ function AppContent() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/analytics" element={<AdvancedAnalytics />} />
                   <Route path="/profile" element={<Profile />} />
-                  <Route path="/agents" element={<AgentsHub activeId={activeId} />} />
                   <Route path="/agent-pipeline" element={<AgentPipeline activeId={activeId} />} />
                   <Route path="/agents-manager" element={<AgentManager />} />
                   <Route path="/ai-chat" element={<AiChat />} />
                   <Route path="/ai-writer" element={<AiWriter />} />
                   <Route path="/my-documents" element={<MyDocuments />} />
-                  <Route path="/tasks" element={<TasksMap />} />
                   <Route path="/invoice-builder" element={<InvoiceBuilder activeId={activeId} />} />
-                  <Route path="/tools" element={<ToolsBox />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/fashion/photoshoot" element={<PhotoShoot activeId={activeId} />} />
-                  <Route path="/fashion/edit" element={<ImageWorkspace />} />
-                  <Route path="/fashion/image-generation" element={<ImageGeneration />} />
 
                   {/* WhatsApp Pages */}
                   <Route path="/wa/prospection" element={<Prospection />} />

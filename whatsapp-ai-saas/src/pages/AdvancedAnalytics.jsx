@@ -8,7 +8,7 @@ import {
 import { API_BASE_URL } from '../config';
 import {
     EMPTY_ARRAY, EMPTY_OBJECT, fmt, pct, MONTHS,
-    buildMonthlyRevenue, buildAgentActivity, buildTaskStats,
+    buildMonthlyRevenue, buildAgentActivity,
     C, Icons,
 } from '../utils/analyticsHelpers';
 import { KPICard, SectionTitle, Panel, CustomTooltip, ZustandInspector } from '../components/analytics/AnalyticsUI';
@@ -19,10 +19,8 @@ export default function AdvancedAnalytics() {
     const { t } = useTranslation();
 
     // Pull everything from Zustand
-    const tasks = useAppStore(s => s.tasks) || EMPTY_ARRAY;
     const invoices = useAppStore(s => s.invoices) || EMPTY_ARRAY;
     const instances = useAppStore(s => s.instances) || EMPTY_ARRAY;
-    const agentHistory = useAppStore(s => s.agentHistory) || EMPTY_ARRAY;
     const conversations = useAppStore(s => s.aiChatConversations) || EMPTY_OBJECT;
     const sessions = useAppStore(s => s.aiChatSessions) || EMPTY_OBJECT;
     const copilotCount = useAppStore(s => s.copilotRepliesGenerated) || 0;
@@ -49,7 +47,6 @@ export default function AdvancedAnalytics() {
     }, []);
 
     // ── Computed metrics ──────────────────────────────────────────
-    const taskStats = useMemo(() => buildTaskStats(tasks), [tasks]);
     const monthlyRev = useMemo(() => buildMonthlyRevenue(invoices), [invoices]);
     const agentActivity = useMemo(() => buildAgentActivity(conversations), [conversations]);
 
@@ -71,13 +68,6 @@ export default function AdvancedAnalytics() {
         Object.values(sessions).reduce((s, arr) => s + (Array.isArray(arr) ? arr.length : 0), 0),
         [sessions]);
 
-    // Task distribution for pie
-    const taskPieData = [
-        { name: t('toDo'), value: taskStats.todo, color: C.amber },
-        { name: t('inProgress'), value: taskStats.inProgress, color: C.primary },
-        { name: t('completed'), value: taskStats.completed, color: C.primary2 },
-    ].filter(d => d.value > 0);
-
     // Invoice status pie
     const invoicePie = [
         { name: t('paidInvoices'), value: paidInvoices, color: C.primary2 },
@@ -94,7 +84,6 @@ export default function AdvancedAnalytics() {
         { id: 'audience', label: t('waAudience') },
         { id: 'agents', label: t('aiAgents') },
         { id: 'revenue', label: t('revenue') },
-        { id: 'tasks', label: t('tasks') },
         { id: 'cache', label: `🗄 ${t('storeCache')}` },
     ];
 
@@ -152,13 +141,11 @@ export default function AdvancedAnalytics() {
                         <KPICard icon={Icons.message} label={t('totalAiMessages')} value={totalMessages} color={C.primary} sub={`${totalSessions} ${t('archivedSessions')}`} />
                         <KPICard icon={Icons.bot} label={t('copilotReplies')} value={copilotCount} color={C.accent} sub={t('allInstances')} />
                         <KPICard icon={Icons.money} label={t('totalRevenue')} value={fmt(totalRevenue)} color={C.primary2} sub={`${invoices.length} ${t('invoicesCount')}`} />
-                        <KPICard icon={Icons.checkCircle} label={t('tasksCompleted')} value={`${taskStats.completed}/${taskStats.total}`} color={C.amber} sub={`${pct(taskStats.completed, taskStats.total)}% ${t('completionRate').toLowerCase()}`} />
                         <KPICard icon={Icons.phone} label={t('instances')} value={instances.length} color={C.blue} sub={t('activeInWorkspace')} />
-                        <KPICard icon={Icons.image} label={t('imageGenerations')} value={agentHistory.length} color={C.purple} sub={t('visualAgents')} />
                     </div>
 
-                    {/* Revenue mini chart + Task donut */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+                    {/* Revenue mini chart */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
                         <Panel>
                             <SectionTitle sub={t('monthlyRevenueEvo')}>{t('monthlyRevenue')}</SectionTitle>
                             <ResponsiveContainer width="100%" height={200}>
@@ -176,35 +163,6 @@ export default function AdvancedAnalytics() {
                                     <Area type="monotone" dataKey="rev" name={t('revenue')} stroke={C.primary} strokeWidth={2.5} fill="url(#revGrad)" />
                                 </AreaChart>
                             </ResponsiveContainer>
-                        </Panel>
-
-                        <Panel>
-                            <SectionTitle sub={t('taskStatusDist')}>{t('tasks')}</SectionTitle>
-                            {taskPieData.length > 0 ? (
-                                <>
-                                    <ResponsiveContainer width="100%" height={160}>
-                                        <PieChart>
-                                            <Pie data={taskPieData} cx="50%" cy="50%" innerRadius={48} outerRadius={72} paddingAngle={3} dataKey="value">
-                                                {taskPieData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                                            </Pie>
-                                            <Tooltip />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                                        {taskPieData.map(d => (
-                                            <div key={d.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: d.color }} />
-                                                    <span style={{ color: C.textSecondary }}>{d.name}</span>
-                                                </div>
-                                                <span style={{ fontWeight: 700, color: C.textPrimary }}>{d.value}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <div style={{ textAlign: 'center', padding: '40px 0', color: C.gray400, fontSize: 13 }}>{t('noTasks')}</div>
-                            )}
                         </Panel>
                     </div>
                 </div>
@@ -279,7 +237,6 @@ export default function AdvancedAnalytics() {
                         <KPICard icon={Icons.message} label={t('exchangedMessages')} value={totalMessages} color={C.primary} />
                         <KPICard icon={Icons.archive} label={t('archivedSessions')} value={totalSessions} color={C.accent} />
                         <KPICard icon={Icons.users} label={t('usedAgents')} value={Object.keys(conversations).filter(k => (conversations[k]?.length || 0) > 0).length} color={C.blue} />
-                        <KPICard icon={Icons.image} label={t('visualGenerations')} value={agentHistory.length} color={C.purple} />
                     </div>
 
                     <Panel>
@@ -298,51 +255,6 @@ export default function AdvancedAnalytics() {
                         ) : (
                             <div style={{ textAlign: 'center', padding: '60px 0', color: C.gray400, fontSize: 13 }}>
                                 {t('noSavedConversationsChat')}
-                            </div>
-                        )}
-                    </Panel>
-
-                    {/* Agent history table */}
-                    <Panel>
-                        <SectionTitle sub={t('latestProductAnalyses')}>{t('visualGenerationHistory')}</SectionTitle>
-                        {agentHistory.length > 0 ? (
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                                    <thead>
-                                        <tr style={{ borderBottom: `2px solid ${C.gray200}` }}>
-                                            {[t('image'), t('product'), t('ambiance'), t('agent'), t('date')].map(h => (
-                                                <th key={h} style={{ textAlign: 'left', padding: '8px 12px', color: C.gray400, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {agentHistory.slice(0, 10).map(h => (
-                                            <tr key={h.id} style={{ borderBottom: `1px solid ${C.gray100}` }}>
-                                                <td style={{ padding: '8px 12px' }}>
-                                                    {h.image?.data ? (
-                                                        <img src={h.image.data} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }} />
-                                                    ) : (
-                                                        <div style={{ width: 36, height: 36, background: C.gray100, borderRadius: 6 }} />
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: '8px 12px', color: C.textPrimary, fontWeight: 600 }}>{h.productType || '—'}</td>
-                                                <td style={{ padding: '8px 12px', color: C.textSecondary }}>{h.targetAmbiance || h.selectedBackground?.name || '—'}</td>
-                                                <td style={{ padding: '8px 12px' }}>
-                                                    <span style={{ background: C.primary + '18', color: C.primary, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600 }}>
-                                                        {h.agentId}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '8px 12px', color: C.gray400, fontSize: 11 }}>
-                                                    {h.date ? new Date(h.date).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '40px 0', color: C.gray400, fontSize: 13 }}>
-                                {t('noImageGenerationSaved')}
                             </div>
                         )}
                     </Panel>
@@ -455,131 +367,12 @@ export default function AdvancedAnalytics() {
                 </div>
             )}
 
-            {/* ════════════ TAB: TÂCHES ════════════ */}
-            {activeTab === 'tasks' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-                        <KPICard icon={Icons.list} label={t('totalTasks')} value={taskStats.total} color={C.primary} />
-                        <KPICard icon={Icons.fileText} label={t('toDo')} value={taskStats.todo} color={C.amber} />
-                        <KPICard icon={Icons.play} label={t('inProgress')} value={taskStats.inProgress} color={C.blue} />
-                        <KPICard icon={Icons.checkCircle} label={t('completed')} value={taskStats.completed} color={C.primary2} sub={`${t('completionRate')}: ${pct(taskStats.completed, taskStats.total)}%`} />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>
-                        <Panel>
-                            <SectionTitle sub={t('tasksByCategory')}>{t('distributionByTag')}</SectionTitle>
-                            {Object.keys(taskStats.byTag).length > 0 ? (
-                                <ResponsiveContainer width="100%" height={220}>
-                                    <BarChart
-                                        data={Object.entries(taskStats.byTag).map(([name, value]) => ({ name, value }))}
-                                        margin={{ left: -10 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.gray200} />
-                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.gray400 }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 11, fill: C.gray400 }} axisLine={false} tickLine={false} />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Bar dataKey="value" name={t('tasks')} fill={C.accent} radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div style={{ textAlign: 'center', padding: '60px 0', color: C.gray400, fontSize: 13 }}>{t('noTasks')}</div>
-                            )}
-                        </Panel>
-
-                        <Panel>
-                            <SectionTitle sub={t('globalProgress')}>{t('completionRate')}</SectionTitle>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0' }}>
-                                <div style={{ position: 'relative', width: 120, height: 120 }}>
-                                    <svg width="120" height="120" viewBox="0 0 120 120">
-                                        <circle cx="60" cy="60" r="50" fill="none" stroke={C.gray200} strokeWidth="10" />
-                                        <circle
-                                            cx="60" cy="60" r="50"
-                                            fill="none"
-                                            stroke={C.primary2}
-                                            strokeWidth="10"
-                                            strokeLinecap="round"
-                                            strokeDasharray={`${2 * Math.PI * 50}`}
-                                            strokeDashoffset={`${2 * Math.PI * 50 * (1 - pct(taskStats.completed, taskStats.total) / 100)}`}
-                                            transform="rotate(-90 60 60)"
-                                        />
-                                    </svg>
-                                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: 24, fontWeight: 800, color: C.textPrimary }}>{pct(taskStats.completed, taskStats.total)}%</span>
-                                        <span style={{ fontSize: 10, color: C.gray400 }}>{t('complete')}</span>
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20, width: '100%' }}>
-                                    {[
-                                        { label: t('toDo'), value: taskStats.todo, color: C.amber },
-                                        { label: t('inProgress'), value: taskStats.inProgress, color: C.primary },
-                                        { label: t('completed'), value: taskStats.completed, color: C.primary2 },
-                                    ].map(item => (
-                                        <div key={item.label}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                                                <span style={{ color: C.textSecondary }}>{item.label}</span>
-                                                <span style={{ fontWeight: 700, color: C.textPrimary }}>{item.value}</span>
-                                            </div>
-                                            <div style={{ background: C.gray100, borderRadius: 4, height: 5, overflow: 'hidden' }}>
-                                                <div style={{
-                                                    width: `${pct(item.value, taskStats.total)}%`,
-                                                    background: item.color, height: '100%', borderRadius: 4,
-                                                    transition: 'width .5s ease',
-                                                }} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </Panel>
-                    </div>
-
-                    {/* Recent tasks list */}
-                    <Panel>
-                        <SectionTitle sub={t('last10Tasks')}>{t('taskLog')}</SectionTitle>
-                        {tasks.length > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {[...tasks].reverse().slice(0, 10).map(tItem => {
-                                    const tagColors = { Development: C.primary2, Design: C.primary, Legal: C.accent, Marketing: C.amber, Sales: C.red };
-                                    const statusDots = { 'todo': C.amber, 'in-progress': C.primary, 'completed': C.primary2 };
-                                    return (
-                                        <div key={tItem.id} style={{
-                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                            padding: '10px 14px', borderRadius: 10,
-                                            background: C.gray100, gap: 12,
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusDots[tItem.status] || C.gray400, flexShrink: 0 }} />
-                                                <span style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tItem.title}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                                                <span style={{
-                                                    background: (tagColors[tItem.tag] || C.gray400) + '20',
-                                                    color: tagColors[tItem.tag] || C.gray400,
-                                                    padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700,
-                                                }}>{tItem.tag}</span>
-                                                <span style={{ fontSize: 11, color: C.gray400 }}>{tItem.date}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '40px 0', color: C.gray400, fontSize: 13 }}>
-                                {t('noTaskCreated')}
-                            </div>
-                        )}
-                    </Panel>
-                </div>
-            )}
-
             {/* ════════════ TAB: STORE CACHE ════════════ */}
             {activeTab === 'cache' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                         <KPICard icon={Icons.key} label={t('keysInStore')} value={Object.keys(fullStore).length} color={C.accent} />
-                        <KPICard icon={Icons.database} label={t('storedTasks')} value={tasks.length} color={C.primary} />
                         <KPICard icon={Icons.message} label={t('aiConversations')} value={Object.keys(conversations).length} color={C.blue} />
                         <KPICard icon={Icons.archive} label={t('archivedSessions')} value={totalSessions} color={C.purple} />
                     </div>

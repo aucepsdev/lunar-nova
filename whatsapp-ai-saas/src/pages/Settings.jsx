@@ -26,7 +26,6 @@ const Settings = () => {
 
     const [backendSettings, setBackendSettings] = useState({
         default_ai_provider: 'gemini',
-        default_image_provider: 'openai',
         ai_execution_strategy: 'auto',
         default_cli_agent: 'gemini',
         auto_fallback_enabled: 'true',
@@ -35,20 +34,16 @@ const Settings = () => {
         ollama_api_key: '',
         openai_api_key: '',
         openai_base_url: 'https://integrate.api.nvidia.com/v1',
-        default_image_model: '',
         together_api_key: '',
     });
     // Statut temps réel des canaux LLM (GET /api/settings/channels-status) —
     // consommé par les badges de la section « Stratégie d'Appel LLM ».
     const [channelsStatus, setChannelsStatus] = useState(null);
-    const aiQuota = useAppStore(state => state.aiQuota);
-    const fetchAiQuota = useAppStore(state => state.fetchAiQuota);
 
-    // Liste des modèles disponibles — gérée par le store (fetchGlobalModels gère déjà
-    // la résolution séparée chat-provider / image-provider), plus de duplication locale.
+    // Liste des modèles disponibles — gérée par le store (fetchGlobalModels),
+    // plus de duplication locale.
     const availableModels = useAppStore(state => state.availableModels);
     const availableChatModels = availableModels.chat;
-    const availableImageModels = availableModels.image;
     const [isLoadingModels, setIsLoadingModels] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const showAppNotification = useAppStore(state => state.showAppNotification);
@@ -88,42 +83,29 @@ const Settings = () => {
             .catch(err => {
                 console.error(err);
                 refreshModels();
-            })
-            .finally(() => {
-                fetchAiQuota();
             });
 
         refreshChannelsStatus();
-    // Chargement initial, volontairement limité au montage : refreshModels et
-    // fetchAiQuota sont redéfinies à chaque rendu, les ajouter aux dépendances
-    // relancerait la requête en boucle. Les réglages sont ensuite rafraîchis par
+    // Chargement initial, volontairement limité au montage : refreshModels est
+    // redéfinie à chaque rendu, l'ajouter aux dépendances relancerait la
+    // requête en boucle. Les réglages sont ensuite rafraîchis par
     // les actions explicites de l'utilisateur.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Pousse les réglages courants (y compris les changements pas encore sauvegardés)
-    // dans le store Zustand, puis relance fetchGlobalModels() — qui gère déjà la
-    // résolution séparée chat-provider / image-provider (src/store.js).
+    // dans le store Zustand, puis relance fetchGlobalModels() (src/store.js).
     const refreshModels = (overrides = {}) => {
         setIsLoadingModels(true);
         const merged = { ...backendSettings, ...overrides };
         setZustandBackendSettings(merged);
         fetchGlobalModels()
             .then(() => {
-                const { chat, image } = useAppStore.getState().availableModels;
+                const { chat } = useAppStore.getState().availableModels;
                 // Auto-sélectionne un modèle valide si celui en cours n'existe plus pour ce provider
                 if (chat.length > 0 && !chat.some(m => m.id === settings.model)) {
                     handleChange('model', chat[0].id);
                 }
-                setBackendSettings(prev => {
-                    if (image.length > 0 && !image.some(m => m.id === prev.default_image_model)) {
-                        return { ...prev, default_image_model: image[0].id };
-                    }
-                    if (image.length === 0 && prev.default_image_model) {
-                        return { ...prev, default_image_model: '' };
-                    }
-                    return prev;
-                });
             })
             .catch(err => {
                 console.error(err);
@@ -134,7 +116,7 @@ const Settings = () => {
 
     const handleBackendChange = (key, value) => {
         setBackendSettings(prev => ({ ...prev, [key]: value }));
-        if (key === 'default_ai_provider' || key === 'default_image_provider') {
+        if (key === 'default_ai_provider') {
             refreshModels({ [key]: value });
         }
     };
@@ -149,7 +131,6 @@ const Settings = () => {
             setBackendSettings(prev => ({ ...prev, [key]: '' }));
             setSecretsSet(prev => ({ ...prev, [key]: false }));
             refreshModels();
-            fetchAiQuota();
             showAppNotification(t('apiKeyDeleted'), 'success');
         } catch (err) {
             console.error(err);
@@ -400,28 +381,11 @@ const Settings = () => {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <p className="text-base font-medium text-gray-800 dark:text-gray-100">{t('defaultImageProvider')}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{t('defaultImageProviderDesc')}</p>
-                        </div>
-                        <CustomSelect
-                            value={backendSettings.default_image_provider || 'openai'}
-                            onChange={(v) => handleBackendChange('default_image_provider', v)}
-                            width="w-64"
-                            panelWidth="w-64"
-                            options={[
-                                { value: 'gemini', label: t('googleGeminiDefault'), description: 'Imagen · Free tier' },
-                                { value: 'openai', label: t('openAiCompatibleNvidia'), description: 'NVIDIA / Together AI' },
-                            ]}
-                        />
-                    </div>
-
                     <div className="flex flex-col gap-6 mb-8 bg-gray-50 dark:bg-gray-750 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
                         <div className="flex items-center justify-between">
                             <div className="w-1/2">
                                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('geminiApiKey')}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('configurePersonalKeyForUnlimitedImages')}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('geminiApiKeyDesc')}</p>
                             </div>
                             <div className="w-1/2 flex justify-end items-center gap-2">
                                 <input
@@ -439,30 +403,6 @@ const Settings = () => {
                                 )}
                             </div>
                         </div>
-
-                        {!aiQuota.hasCustomKey && (
-                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                                <div className="flex justify-between items-center mb-2">
-                                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('freeTierUsage')}</p>
-                                    <p className="text-xs font-bold text-primary">{aiQuota.imageUsed} / {aiQuota.imageLimit} {t('images')}</p>
-                                </div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                                    <div
-                                        className={`h-2 rounded-full transition-all duration-500 ${aiQuota.imageUsed >= aiQuota.imageLimit * 0.9 ? 'bg-red-500' : aiQuota.imageUsed >= aiQuota.imageLimit * 0.8 ? 'bg-orange-500' : 'bg-primary'}`}
-                                        style={{ width: `${Math.min(100, (aiQuota.imageUsed / aiQuota.imageLimit) * 100)}%` }}
-                                    ></div>
-                                </div>
-                                <div className="flex justify-between items-center mt-2">
-                                    <p className="text-[10px] text-gray-400">{t('resetEachMonthOnThe5th')}</p>
-                                    {aiQuota.imageUsed >= aiQuota.imageLimit && (
-                                        <p className="text-[10px] text-red-500 font-medium">{t('quotaExceededWarning')}</p>
-                                    )}
-                                </div>
-                                <p className="text-[11px] text-emerald-500 dark:text-emerald-400 mt-3 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded border border-emerald-100 dark:border-emerald-800/30">
-                                    💡 <strong>Tip:</strong> <a href="https://auceps-digital.agency/projects/saas/wacopilote/" target="_blank" rel="noreferrer" className="underline hover:text-emerald-600">{t('getFreeGeminiKeyHere')}</a> {t('toContinueGeneratingImages')}
-                                </p>
-                            </div>
-                        )}
                     </div>
 
 
@@ -598,57 +538,6 @@ const Settings = () => {
                                     options={availableChatModels.filter(m => m.type === 'text').map(m => ({ value: m.id, label: m.name }))}
                                 />
                             </div>
-
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <p className="text-base font-medium text-gray-800 dark:text-gray-100">Modèle de Vision (Analyse)</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Pour analyser les images</p>
-                                </div>
-                                <CustomSelect
-                                    value={backendSettings.default_vision_model || ''}
-                                    onChange={(v) => setBackendSettings(prev => ({ ...prev, default_vision_model: v }))}
-                                    width="w-72"
-                                    searchable={availableChatModels.filter(m => m.type === 'vision').length > 4}
-                                    disabled={isLoadingModels}
-                                    panelWidth="w-72"
-                                    placeholder={isLoadingModels ? t('loading') : t('noModelAvailable')}
-                                    options={availableChatModels.filter(m => m.type === 'vision').map(m => ({ value: m.id, label: m.name }))}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <p className="text-base font-medium text-gray-800 dark:text-gray-100">Modèle de Génération (Text-to-Image)</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Pour générer de nouvelles images</p>
-                                </div>
-                                <CustomSelect
-                                    value={backendSettings.default_image_generate_model || ''}
-                                    onChange={(v) => setBackendSettings(prev => ({ ...prev, default_image_generate_model: v }))}
-                                    width="w-72"
-                                    searchable={availableImageModels.filter(m => m.type === 'image-generate').length > 4}
-                                    disabled={isLoadingModels}
-                                    panelWidth="w-72"
-                                    placeholder={isLoadingModels ? t('loading') : t('imageGenerationNotSupported')}
-                                    options={availableImageModels.filter(m => m.type === 'image-generate').map(m => ({ value: m.id, label: m.name }))}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <p className="text-base font-medium text-gray-800 dark:text-gray-100">Modèle d'Édition (Image-to-Image)</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Pour modifier une image existante</p>
-                                </div>
-                                <CustomSelect
-                                    value={backendSettings.default_image_edit_model || ''}
-                                    onChange={(v) => setBackendSettings(prev => ({ ...prev, default_image_edit_model: v }))}
-                                    width="w-72"
-                                    searchable={availableImageModels.filter(m => m.type === 'image-edit').length > 4}
-                                    disabled={isLoadingModels}
-                                    panelWidth="w-72"
-                                    placeholder={isLoadingModels ? t('loading') : t('imageGenerationNotSupported')}
-                                    options={availableImageModels.filter(m => m.type === 'image-edit').map(m => ({ value: m.id, label: m.name }))}
-                                />
-                            </div>
                         </>
                     ) : (
                         <>
@@ -666,26 +555,6 @@ const Settings = () => {
                                     panelWidth="w-72"
                                     placeholder={isLoadingModels ? t('loading') : t('noModelAvailable')}
                                     options={availableChatModels.map(m => ({ value: m.id, label: m.name }))}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <p className="text-base font-medium text-gray-800 dark:text-gray-100">{t('imageGenerationModel')}</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('selectModelForVisualCreation')}</p>
-                                    <p className="text-xs text-primary/80 mt-1">
-                                        Vision ·  Image-Edit &nbsp;—&nbsp; {t('appliedToAllImagePages')}
-                                    </p>
-                                </div>
-                                <CustomSelect
-                                    value={backendSettings.default_image_model || ''}
-                                    onChange={(v) => setBackendSettings(prev => ({ ...prev, default_image_model: v }))}
-                                    width="w-72"
-                                    searchable={availableImageModels.length > 4}
-                                    disabled={isLoadingModels}
-                                    panelWidth="w-72"
-                                    placeholder={isLoadingModels ? t('loading') : t('imageGenerationNotSupported')}
-                                    options={availableImageModels.map(m => ({ value: m.id, label: m.name }))}
                                 />
                             </div>
                         </>
