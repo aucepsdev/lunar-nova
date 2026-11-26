@@ -48,6 +48,19 @@ const Support = () => {
 
     const changelog = [
         {
+            version: 'v1.49.1',
+            date: '2026-11-26',
+            changes: [
+                'Sécurité — Le service local de WaCopilote ne peut plus lancer n\'importe quel programme sur votre ordinateur. Seuls les agents en ligne de commande (Gemini CLI, Claude Code, Aider, Ollama) peuvent être lancés, et cette liste n\'est plus modifiable depuis les réglages. La console de test du pont CLI perd son mode « Délégation Machine »',
+                'Sécurité — Les messages de vos clients WhatsApp et les fiches de prospects ne sont plus jamais confiés à un agent installé sur votre ordinateur (Claude Code, Gemini CLI), car ces outils ont accès à vos fichiers. Les réponses suggérées aux commandes et les brouillons du pipeline passent par vos fournisseurs d\'IA avec clé API : sans clé configurée, ils ne sont plus générés',
+                'Sécurité — Un agent lancé sur votre ordinateur ne reçoit plus que ses propres identifiants : ni vos autres clés API, ni la clé qui protège vos secrets',
+                'Sécurité — Mises à jour vérifiées : WaCopilote ne télécharge plus que les fichiers de son dépôt officiel et contrôle leur empreinte avant de les installer. Au passage, le bon installeur est désormais toujours choisi',
+                'Correctif — La modification d\'un agent personnalisé est de nouveau enregistrée. En cas d\'échec, un message s\'affiche au lieu d\'une fermeture silencieuse',
+                'Sécurité — Electron passe en 45.3.1 (moteur Chromium 156) : la version 41 ne recevait plus de correctifs. Les dépendances de l\'application et du service sont à jour, sans vulnérabilité connue',
+                'Note — Electron 45 ne fonctionne plus sous Windows 32 bits ni sous macOS 12 ou antérieur'
+            ]
+        },
+        {
             version: 'v1.49.0',
             date: '2026-09-14',
             changes: [

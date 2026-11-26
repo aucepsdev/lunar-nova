@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/auceps-dev-team/lunar-nova"><img src="https://img.shields.io/badge/version-1.49.0-blue.svg" alt="Version 1.49.0" /></a>
+  <a href="https://github.com/auceps-dev-team/lunar-nova"><img src="https://img.shields.io/badge/version-1.49.1-blue.svg" alt="Version 1.49.1" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License AGPL-3.0" /></a>
   <a href="#-open-source"><img src="https://img.shields.io/badge/open%20source-oui-brightgreen.svg" alt="Open Source" /></a>
   <a href="#-pourquoi-wacopilote-"><img src="https://img.shields.io/badge/Made%20in-%F0%9F%87%A8%F0%9F%87%BE%20C%C3%B4te%20d'Ivoire-orange.svg" alt="Made in Côte d'Ivoire" /></a>
@@ -439,7 +439,7 @@ La configuration ESLint distingue désormais les trois environnements du dépôt
 | `npm run start:backend` | Démarre uniquement le serveur Express backend sur `http://127.0.0.1:3000`. |
 | `npm run electron:dev` | Démarre Vite et attend la disponibilité des ports `5173` et `3000` avant de lancer Electron. |
 | `npm run start:all` | **Commande principale** : Lance simultanément le Backend Express, Vite et Electron avec synchronisation automatique. |
-| `npm run test` | Lance la suite de tests Vitest (25 suites, 220+ tests validés). |
+| `npm run test` | Lance la suite de tests Vitest (30 suites, 287 tests réussis, 3 ignorés sans clé API). |
 | `npm run lint` | Analyse la qualité du code avec ESLint 9 (`--max-warnings=0`). |
 | `npm run build` | Compile le bundle de production Vite (`dist/`). |
 | `npm run electron:build` | Génère les exécutables d'installation desktop (`dist-electron/`). |
@@ -492,6 +492,7 @@ whatsapp-ai-saas/
 - [x] **Q3 2026** : **Passage en open source sous AGPL-3.0** (v1.36.0) et durcissement de la sécurité du backend local.
 - [x] **Q3 2026** : Chiffrement au repos des clés d'API et des jetons OAuth (v1.37.0).
 - [x] **Q3 2026** : Recentrage du produit sur la gestion multi-comptes WhatsApp — retrait complet du pont WordPress / WooCommerce (v1.49.0).
+- [x] **Q4 2026** : Audit complet avant refonte et six correctifs de sécurité : exécution de commandes fermée, agents locaux exclus du contenu tiers, mises à jour vérifiées, Electron 45 (v1.49.1).
 - [ ] **Q3 2026** : Couverture de tests sur les scrapers, les adaptateurs LLM et les migrations de schéma.
 - [ ] **Q4 2026** : Support de WhatsApp Multi-Appareils Cloud API & fallback Baileys direct sans navigateur.
 - [ ] **2027** : Assistant IA vocal WhatsApp (transcription & réponse vocale temps réel) et version Web SaaS synchronisée.
