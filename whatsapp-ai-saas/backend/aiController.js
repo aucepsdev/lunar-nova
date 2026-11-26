@@ -106,7 +106,15 @@ async function classifyOrderIntent(text, contactName, modelParam = null, provide
     }
 }
 
-async function chatWithAgent(personaId, message, imageParams, attachments, promptFormat, messages = null, currentTasks = null, isRealTime = false, modelOverride = null, providerOverride = null) {
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.untrustedInput=false] Le message contient du contenu
+ *   tiers (message WhatsApp d'un client, données récupérées sur le web). Les
+ *   canaux d'agents locaux (CLI Claude/Gemini, serveur MCP) sont alors exclus :
+ *   ces outils lisent le disque, et un texte tiers pourrait leur dicter quoi
+ *   lire.
+ */
+async function chatWithAgent(personaId, message, imageParams, attachments, promptFormat, messages = null, currentTasks = null, isRealTime = false, modelOverride = null, providerOverride = null, options = {}) {
     const { provider: dbProvider, dbAgent } = await getProviderConfig(personaId);
     let provider = providerOverride || dbProvider;
 
@@ -163,7 +171,8 @@ async function chatWithAgent(personaId, message, imageParams, attachments, promp
         isRealTime,
         modelOverride,
         providerOverride: provider,
-        dbAgent
+        dbAgent,
+        untrustedInput: Boolean(options && options.untrustedInput)
     });
 }
 
