@@ -1,6 +1,7 @@
 # Project Progress: WaCopilote
 
 ## Completed Milestones
+- [x] **Retrait du studio photo, des tâches et de la boîte à outils (2026-11-26, non publié — v1.50.0)** : premier volet du périmètre de `docs/refonte-cadrage.md`. Environ 6 000 lignes et 11 Mo d'images retirés, 235 clés i18n par langue, outil MCP `generate_photo`, commande CLI `photo`, persona `photoshoot`. 30 suites, 287 tests réussis / 3 ignorés ; E2E 5/5.
 - [x] **Audit complet avant refonte (2026-11-26, sur v1.49.0)** — `docs/audit.md` :
   - 40 constats (2 critiques, 11 élevés, 20 moyens, 7 faibles). Critiques : exécution de commandes arbitraires via `/api/cli/run-external` (liste blanche incluant node/python/npx/curl), port CDP 8315 ouvert en production.
   - Deux bugs reproduits sur base en mémoire : la mise à jour d'un agent personnalisé échoue (`$n` réutilisés dans l'upsert), `PRAGMA foreign_keys` inactif.

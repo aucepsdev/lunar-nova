@@ -16,19 +16,21 @@ describe('wacopiloteMcpServer — Serveur MCP standard', { timeout: 30000 }, () 
         expect(toolNames).toContain('call_agent');
         expect(toolNames).toContain('get_orders');
 
-        // Extension v1.45.0 : prospection/pipeline, documents, photo, devis,
+        // Extension v1.45.0 : prospection/pipeline, documents, devis,
         // instances WhatsApp.
         for (const name of [
             'prospect_leads', 'run_pipeline', 'list_pipeline_cards',
-            'list_documents', 'create_document', 'generate_photo',
+            'list_documents', 'create_document',
             'list_quotes', 'export_quote_pdf',
             'list_instances', 'open_whatsapp_chat'
         ]) {
             expect(toolNames).toContain(name);
         }
+        // Retiré avec le studio photo (docs/refonte-cadrage.md).
+        expect(toolNames).not.toContain('generate_photo');
     });
 
-    it('handleToolCall("list_agents") renvoie les 26 personas', async () => {
+    it('handleToolCall("list_agents") renvoie les 25 personas', async () => {
         const result = await handleToolCall('list_agents', {});
         expect(result).toBeDefined();
         expect(result.count).toBeGreaterThanOrEqual(25);

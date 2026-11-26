@@ -28,7 +28,6 @@
 - [Routage Multi-LLM & Fournisseurs d'IA](#-routage-multi-llm--fournisseurs-dia)
 - [Bridge CLI & Protocoles Agentiques (MCP)](#-bridge-cli--protocoles-agentiques-mcp)
 - [Automatisation WhatsApp & Engine Playwright](#-automatisation-whatsapp--engine-playwright)
-- [Studio Photo IA & Génération de Catalogue](#-studio-photo-ia--génération-de-catalogue)
 - [Prospection & Mining de Leads B2B](#-prospection--mining-de-leads-b2b)
 - [Sécurité & Audit de Protection](#-sécurité--audit-de-protection)
 - [Tests & Analyse Statique](#-tests--analyse-statique)
@@ -64,12 +63,11 @@ Si ce cadre ne convient pas à votre contexte (intégration dans un produit prop
 
 ## 🤖 Pourquoi "WaCopilote" ?
 
-**WaCopilote** est la plateforme desktop de référence conçue pour fusionner la puissance des **agents conversationnels multimodaux d'intelligence artificielle**, l'**automatisation WhatsApp Web**, la **génération de contenu e-commerce (Studio Photo IA)** et la **prospection B2B automatisée**.
+**WaCopilote** est la plateforme desktop de référence conçue pour fusionner la puissance des **agents conversationnels multimodaux d'intelligence artificielle**, l'**automatisation WhatsApp Web**, la **rédaction assistée par IA** et la **prospection B2B automatisée**.
 
 Là où les outils traditionnels se limitent à de simples chatbots rigides ou à du routage de messages basique, WaCopilote apporte une suite logicielle complète :
 - 🤖 **Agents IA Multi-Fournisseurs** : Basculez de manière dynamique entre **Google Gemini 1.5/2.0**, **NVIDIA NIM** (Llama 3, Gemma, Qwen), **OpenRouter**, **Together AI** et des modèles locaux de confidentialité totale via **Ollama**.
 - 📱 **Automation WhatsApp Intelligente** : Détectez les intentions d'achat et traquez les commandes WhatsApp en temps réel grâce à notre moteur headless Playwright/Puppeteer.
-- 📷 **Studio Photo Produit Virtuel** : Générez des visuels de produits haut de gamme, supprimez les arrières-plans, réalisez des "Photo Shoots" virtuels et composez vos catalogues en quelques clics.
 - 🔍 **Prospection & Extraction de Leads** : Extrayez automatiquement des données d'entreprises ciblées depuis **Google Places**, **Annuaire CI** et **GoAfrica** pour alimenter vos campagnes WhatsApp.
 
 ---
@@ -79,7 +77,7 @@ Là où les outils traditionnels se limitent à de simples chatbots rigides ou �
 WaCopilote est taillé sur mesure pour répondre aux défis des marchés africains et internationaux :
 
 1. **Commerçants, E-commerçants & Marques Retail** *(Côte d'Ivoire, Sénégal, Cameroun, France, International)*
-   > *"Automatisez l'accueil de vos clients WhatsApp, présentez vos catalogues de produits générés par IA, créez des devis PDF instantanés et ne manquez plus jamais une vente."*
+   > *"Automatisez l'accueil de vos clients WhatsApp, détectez leurs commandes, créez des devis PDF instantanés et ne manquez plus jamais une vente."*
 
 2. **Agences Web, Marketing & Managers Social Media**
    > *"Pilotez la création de contenu IA, la rédaction d'articles SEO, la prospection de prospects B2B qualifiés et la gestion multi-agents pour le compte de dizaines de clients."*
@@ -97,9 +95,6 @@ WaCopilote est taillé sur mesure pour répondre aux défis des marchés africai
 
 ### 2. Hub d'Agents IA & Pipeline Séquentiel
 Configurez des agents spécialisés (Support Client, Rédacteur Web, Analyste Financier, Détective Leads) et enchaînez-les dans des pipelines automatisés.
-
-### 3. Studio Photo IA & Générateur de Visuels Produits
-Téléversez une simple photo de produit brut et générez un visuel studio professionnel avec arrière-plan personnalisé, ombres réalistes et intégration catalogue.
 
 ---
 
@@ -135,7 +130,6 @@ npm run start:all
 - **Routage Multi-LLM Dynamique** : Support natif de Google Gemini (Flash, Pro, Vision), NVIDIA NIM API (Llama 3.3 70B, Qwen 2.5, Gemma 2), OpenRouter, Together AI et Ollama (Llama 3 local, Mistral).
 - **Écouteur & Automate WhatsApp** : Analyse des conversations WhatsApp en direct via Playwright (`orderListener.js`), capture des commandes et réponse autonome des agents.
 - **Prospection Lead Mining B2B** : Scrapers intégrés pour Annuaire CI, GoAfrica et recherche Google Places API avec géolocalisation et extraction de coordonnées.
-- **Studio Photo & Retouche IA** : Remplacement de fond produit, inpainting, retouche via IA (Together AI Qwen / Flux), et exportation de fiches produits.
 - **Gestionnaire de Contacts & Segmentation** : Importation de contacts CSV/Excel, gestion des listes de diffusion, segmentation et ciblage pour campagnes WhatsApp.
 - **Créateur de Devis & Factures PDF** : Génération instantanée de devis/factures téléchargeables en PDF (`InvoiceBuilder.jsx`) avec calcul de taxes et personnalisation d'entreprise.
 - **Copywriter IA Multilingue** : Génération de posts réseaux sociaux, accroches publicitaires, broadcasts WhatsApp et articles de blog optimisés SEO.
@@ -170,7 +164,7 @@ WaCopilote adopte une architecture monorepo hybride conçue pour la réactivité
 +-----------------------------------------------------------------------+
 ```
 
-- **Execution Asynchrone & Non-Bloquante** : Les tâches lourdes (scraping, génération d'images, inférence LLM) s'exécutent en arrière-plan sans geler l'interface utilisateur React.
+- **Execution Asynchrone & Non-Bloquante** : Les tâches lourdes (scraping, inférence LLM) s'exécutent en arrière-plan sans geler l'interface utilisateur React.
 - **Gestion Avancée du Cache Redis** : Cache des modèles LLM disponibles, limitation du taux de requêtes (`express-rate-limit`) et mise en mémoire tampon des propositions d'agents.
 - **Base de Données SQLite Persistante** : Schéma relationnel optimisé (`backend/db.js`) gérant les interactions, les contacts, les paramètres et les logs d'observabilité.
 
@@ -188,7 +182,7 @@ WaCopilote intègre une passerelle unifiée (AI Gateway) capable de communiquer 
 | **NVIDIA NIM** | Llama 3.3 70B, Qwen 2.5 72B, Nemotron, Gemma 2 | Raisonnement complexe, pipelines d'agents autonomes | Cloud High-Perf API |
 | **OpenRouter** | Claude 3.5 Sonnet, DeepSeek R1, GPT-4o | Tâches de rédaction experte, code, et raisonnement avancé | Cloud Multi-Provider API |
 | **Ollama** | Llama 3, Mistral 7B, Phi-3, Qwen 2.5 | Confidentialité totale, fonctionnement 100% hors-ligne | Inférence Locale (CPU/GPU) |
-| **Together AI** | Qwen-Image, Flux.1 Schnell / Dev | Génération d'images produits & Studio Photo IA | Cloud Media Generation API |
+| **Together AI** | Llama 3.2 11B Vision | Analyse d'images jointes dans le chat | Cloud Inference API |
 | **CLI / Local Agents** | gemini, claude, aider, ollama | Délégation aux agents locaux & binaire autonome | Invocations Shell Sécurisées |
 
 ### Routage Agentique Intelligent & Auto-Fallback Multi-Canal (v1.47.0)
@@ -243,7 +237,6 @@ npx wacopilote documents list --json
 npx wacopilote documents create --title "Argumentaire" --content "..." --json
 
 # Génération photo (produit ou mannequin)
-npx wacopilote photo generate --agent photoshoot --prompt "Robe d'été rouge" --out ./photo.png
 
 # Devis — export PDF autonome (Chromium headless, aucune dépendance à l'app Electron)
 npx wacopilote quotes create --client-name "Boutique X" --data '{"items":[{"description":"Robe","qty":2,"price":15000}]}'
@@ -279,7 +272,6 @@ Ajoutez simplement la configuration suivante dans votre `claude_desktop_config.j
 - **Agents** : `list_agents`, `call_agent`.
 - **Prospection & Pipeline** : `prospect_leads`, `run_pipeline` (composite prospection → liste → messages → planning), `create_pipeline_run`, `save_pipeline_contacts`, `generate_pipeline_messages`, `organize_pipeline`, `list_pipeline_cards`, `update_pipeline_card_stage`.
 - **Documents** : `list_documents`, `get_document`, `create_document`, `update_document`, `delete_document`.
-- **Photo** : `generate_photo`.
 - **Devis** : `list_quotes`, `get_quote`, `create_quote`, `update_quote`, `export_quote_pdf`.
 - **Instances WhatsApp** : `list_instances`, `open_whatsapp_chat` (pilotage d'une instance déjà authentifiée — la création d'une nouvelle instance reste une action humaine).
 - **Commandes** : `get_orders`.
@@ -304,16 +296,6 @@ Le module WhatsApp (`backend/orderListener.js` et `backend/routes/wa.js`) permet
 2. **Écouteur de Commandes (`Order Listener`)** : Analyse syntaxique des messages entrants pour identifier les intentions d'achat (mots-clés, références produits, quantités).
 3. **Réponse Automatisée par Agent IA** : Injection du contexte produit et génération d'une réponse naturelle de conseiller commercial.
 4. **Gestionnaire de Contacts & Listes** : Importation de répertoires d'entreprises, segmentation par tags, et historique des conversations.
-
----
-
-## 📷 Studio Photo IA & Génération de Catalogue
-
-Transformez des photos de produits amateurs en visuels E-Commerce de classe mondiale :
-
-- **Remplacement d'Arrière-Plan** : Détourage automatique du produit et génération d'un décor de studio réaliste (ex: table en marbre, podium en bois, plage, intérieur moderne).
-- **Inpainting & Retouche Produit** : Correction des imperfections et ajout d'éléments décoratifs à la demande via prompts textuels.
-- **Exportation Multi-Formats** : Génération de fiches catalogues structurées, prêtes à partager sur WhatsApp et les réseaux sociaux.
 
 ---
 
@@ -386,7 +368,6 @@ La configuration ESLint distingue désormais les trois environnements du dépôt
 | **Base de Données & Cache** | SQLite 3 (`sqlite3` / `sqlite`), Redis 5 (`redis`) |
 | **Automation Web** | Playwright, Puppeteer Core |
 | **Moteurs d'IA (LLMs)** | `@google/genai`, NVIDIA NIM API, OpenRouter API, Ollama SDK |
-| **Génération d'Images** | Together AI (Qwen Image / Flux), HTML2Canvas |
 | **Internationalization** | i18next, react-i18next |
 | **Tests & Outillage** | Vitest 4, Testing Library, ESLint 9, Concurrently, Cross-Env |
 
@@ -492,7 +473,7 @@ whatsapp-ai-saas/
 │   ├── components/         → Composants UI (Sidebar, Topbar, éditeur d'images, kanban)
 │   ├── __tests__/          → Tests unitaires frontend (Vitest)
 │   ├── locales/            → Traductions i18next (fr, en, es, ar)
-│   ├── pages/              → Vues principales (Dashboard, AiChat, PhotoShoot, Prospection...)
+│   ├── pages/              → Vues principales (Dashboard, AiChat, Prospection, Devis...)
 │   │   └── whatsapp/       → Sous-pages dédiées aux flux WhatsApp (Contacts, Orders, Segments)
 │   ├── services/           → Client API et authentification côté renderer
 │   └── store.js            → State management Zustand (store unique persisté)
