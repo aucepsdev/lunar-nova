@@ -1,6 +1,12 @@
 # Project Progress: WaCopilote
 
 ## Completed Milestones
+- [x] **Audit complet avant refonte (2026-11-26, sur v1.49.0)** — `docs/audit.md` :
+  - 40 constats (2 critiques, 11 élevés, 20 moyens, 7 faibles). Critiques : exécution de commandes arbitraires via `/api/cli/run-external` (liste blanche incluant node/python/npx/curl), port CDP 8315 ouvert en production.
+  - Deux bugs reproduits sur base en mémoire : la mise à jour d'un agent personnalisé échoue (`$n` réutilisés dans l'upsert), `PRAGMA foreign_keys` inactif.
+  - 39 alertes npm (backend 15 dont 1 critique, racine 24) contre 0 au 14/09 ; Electron 41 hors maintenance ; couverture mesurée 13,8 % (frontend 0 %).
+  - Six correctifs immédiats proposés pour la 1.49, et trois décisions de cadrage attendues avant la refonte : périmètre, canal WhatsApp (API officielle ou automatisation du web), bureau seul ou SaaS.
+  - Aucun changement de code ni de version.
 - [x] **Retrait du module WordPress & recentrage produit (v1.49.0, 2026-09-14)** :
   - Suppression complète du pont WordPress/WooCommerce (routes, service, persona, page, composants, plugin, outils MCP, commande CLI, i18n) ; migration de schéma v9 supprimant `wp_connections` et `wp_pending_actions` des bases existantes.
   - Electron 41.10.7 et puppeteer-core 25.11.0 : **0 vulnérabilité** connue sur les deux espaces de travail (23 au début du cycle).
