@@ -73,12 +73,13 @@ describe('fonctionnalités — règles et API', () => {
         const { status, json } = await put('crm', { enabled: false });
         expect(status).toBe(409);
         expect(json.code).toBe('FEATURE_REQUIRED_BY');
-        expect(json.dependantes).toEqual(['pipeline']);
+        expect(json.dependantes).toEqual(['verification-numeros', 'pipeline']);
         expect(await etatDe('crm')).toBe(true);
     });
 
     it('éteindre dans l\'ordre, puis activer avec une dépendance éteinte : 409 qui nomme les dépendances', async () => {
         expect((await put('pipeline', { enabled: false })).status).toBe(200);
+        expect((await put('verification-numeros', { enabled: false })).status).toBe(200);
         expect((await put('crm', { enabled: false })).status).toBe(200);
         expect(await features.estActive('crm')).toBe(false);
 
@@ -87,11 +88,15 @@ describe('fonctionnalités — règles et API', () => {
         expect(json.code).toBe('FEATURE_DEPENDENCIES_DISABLED');
         expect(json.dependances).toEqual(['crm']);
         expect(await etatDe('pipeline')).toBe(false);
+        const verification = await put('verification-numeros', { enabled: true });
+        expect(verification.status).toBe(409);
+        expect(verification.json.dependances).toEqual(['crm']);
 
         expect((await put('crm', { enabled: true })).status).toBe(200);
         const ok = await put('pipeline', { enabled: true });
         expect(ok.status).toBe(200);
         expect(ok.json.data).toMatchObject({ id: 'pipeline', enabled: true });
+        expect((await put('verification-numeros', { enabled: true })).status).toBe(200);
     });
 
     it('l\'état est persistant : il est relu dans la table, pas gardé en mémoire', async () => {

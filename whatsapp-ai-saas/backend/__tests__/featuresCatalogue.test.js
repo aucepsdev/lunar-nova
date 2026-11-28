@@ -144,6 +144,22 @@ describe('catalogue — intégrité', () => {
             }
         }
     });
+
+    // Les risques déclenchent la confirmation à l'activation (PR 4) : écrits en
+    // dur, pour qu'un risque retiré par erreur fasse échouer la CI. Ticket #30
+    // §4, et relecture de #39 pour verification-numeros, qui fait naviguer
+    // WhatsApp Web de numéro en numéro sans action humaine.
+    it('chaque risque est porté par la fonctionnalité prévue', () => {
+        const risques = Object.fromEntries(catalogue.fonctionnalites
+            .filter((f) => f.risques.length)
+            .map((f) => [f.id, f.risques]));
+        expect(risques).toEqual({
+            'verification-numeros': ['automatisation-whatsapp'],
+            commandes: ['automatisation-whatsapp'],
+            'mcp-externe': ['acces-externe'],
+            'agents-cli-locaux': ['execution-locale'],
+        });
+    });
 });
 
 // ── 2. Inventaire ───────────────────────────────────────────────────────────

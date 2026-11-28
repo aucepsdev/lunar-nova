@@ -43,6 +43,15 @@ describe('fonctionnalités — migration v13 et synchronisation', () => {
         expect((await lignes())['notes-vocales']).toBe(0);
     });
 
+    // Décisions du mainteneur du 28/11 (ticket #30, étude §1), écrites en dur :
+    // le test précédent suit le catalogue, il ne verrait pas une valeur par
+    // défaut changée par erreur.
+    it('base neuve, décisions du 28/11 : mcp-externe actif, agents-cli-locaux éteint', async () => {
+        const etat = await lignes();
+        expect(etat['mcp-externe']).toBe(1);
+        expect(etat['agents-cli-locaux']).toBe(0);
+    });
+
     it('installation 1.52.x, vocaux activés : notes-vocales reste active', async () => {
         await revenirEnV12('on');
         expect(await db.__rerunInitDBForTests()).toBe(true);
@@ -64,6 +73,19 @@ describe('fonctionnalités — migration v13 et synchronisation', () => {
         await revenirEnV12(undefined);
         expect(await db.__rerunInitDBForTests()).toBe(true);
         expect((await lignes())['notes-vocales']).toBe(0);
+    });
+
+    // Une mise à jour ne retire rien (§3 du ticket) : les valeurs par défaut
+    // ne s'appliquent qu'aux installations neuves. verification-numeros est
+    // présente ici pour la même raison : sa valeur par défaut reste à trancher,
+    // et une installation existante doit la garder quelle que soit la décision.
+    it('installation 1.52.x : mcp-externe, agents-cli-locaux et verification-numeros restent actifs', async () => {
+        await revenirEnV12('off');
+        expect(await db.__rerunInitDBForTests()).toBe(true);
+        const etat = await lignes();
+        expect(etat['mcp-externe']).toBe(1);
+        expect(etat['agents-cli-locaux']).toBe(1);
+        expect(etat['verification-numeros']).toBe(1);
     });
 
     it('un redémarrage ne modifie jamais une ligne existante', async () => {

@@ -460,9 +460,13 @@ async function runInitDB() {
 // une fonctionnalité ajoutée plus tard au catalogue n'existait pas pour
 // l'utilisateur qui met à jour, et reçoit donc sa valeur par défaut (voir
 // synchroniserFonctionnalites), pas une activation forcée.
+//
+// Une fonctionnalité de cette liste dont la valeur par défaut est « éteinte »
+// (agents-cli-locaux, décision du 28/11) reste donc active chez l'utilisateur
+// qui met à jour : elle marchait avant la v13.
 const FONCTIONNALITES_V13 = [
-    'noyau', 'crm', 'commandes', 'notes-vocales', 'prospection', 'pipeline', 'agents',
-    'redaction', 'devis-factures', 'analyses', 'taches',
+    'noyau', 'crm', 'verification-numeros', 'commandes', 'notes-vocales', 'prospection',
+    'pipeline', 'agents', 'redaction', 'devis-factures', 'analyses', 'taches',
     'mcp-externe', 'agents-cli-locaux'
 ];
 

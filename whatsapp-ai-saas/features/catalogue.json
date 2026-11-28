@@ -66,8 +66,7 @@
           "PUT /api/wa/contacts/bulk-update-list",
           "PUT /api/wa/contacts/:id",
           "DELETE /api/wa/contacts/bulk-delete",
-          "DELETE /api/wa/contacts/:id",
-          "POST /api/wa/verify-contact"
+          "DELETE /api/wa/contacts/:id"
         ],
         "mcp": [
           "list_segments", "create_segment", "delete_segment",
@@ -75,6 +74,23 @@
           "assign_contacts_to_segment"
         ],
         "cli": ["contacts", "segments"]
+      }
+    },
+    {
+      "id": "verification-numeros",
+      "labelKey": "featureVerificationNumeros",
+      "descriptionKey": "featureVerificationNumerosDesc",
+      "categorie": "whatsapp",
+      "defaut": true,
+      "noyau": false,
+      "dependances": ["crm"],
+      "risques": ["automatisation-whatsapp"],
+      "surfaces": {
+        "routes": [],
+        "menu": [],
+        "api": ["POST /api/wa/verify-contact"],
+        "mcp": [],
+        "cli": []
       }
     },
     {
@@ -302,7 +318,7 @@
       "labelKey": "featureAgentsCliLocaux",
       "descriptionKey": "featureAgentsCliLocauxDesc",
       "categorie": "acces-externes",
-      "defaut": true,
+      "defaut": false,
       "noyau": false,
       "dependances": ["agents"],
       "risques": ["execution-locale"],
