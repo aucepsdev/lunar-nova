@@ -1,4 +1,5 @@
 const db = require('../db');
+const features = require('../features');
 // Accès par namespace (et non déstructuré) : permet aux tests de substituer
 // ces fonctions à chaud (convention du projet — cf. nvidiaModels.test.js,
 // contactAgent.test.js : pas de vi.mock sur les modules CommonJS inlinés).
@@ -138,6 +139,14 @@ async function invokeSingleProvider({
     isRealTime,
     dbAgent
 }) {
+    // Dernière garde (Marketplace, ticket #30) : un canal local dont la
+    // fonctionnalité est éteinte ne s'exécute jamais, même choisi directement.
+    // La cascade l'a normalement déjà écarté (canauxExclus).
+    const featureDuCanal = FONCTIONNALITE_DU_CANAL[provider];
+    if (featureDuCanal && !(await features.estActive(featureDuCanal))) {
+        throw new Error(`Canal « ${provider} » indisponible : la fonctionnalité « ${featureDuCanal} » est désactivée.`);
+    }
+
     let effectiveAgent = dbAgent;
     const orchestrator = require('../agents/orchestrator');
     const persona = orchestrator.getPersona(personaId) || orchestrator.getPersona('copilot');
@@ -330,6 +339,25 @@ let fallbackInFlight = false;
 // instructions à un outil qui a accès aux fichiers du poste.
 const LOCAL_AGENT_PROVIDERS = new Set(['cli', 'mcp']);
 
+// Fonctionnalité du Marketplace qui ouvre chaque canal local (ticket #30) :
+// les CLI du poste pour « cli », le serveur MCP pour « mcp ».
+const FONCTIONNALITE_DU_CANAL = { cli: 'agents-cli-locaux', mcp: 'mcp-externe' };
+
+/**
+ * Canaux locaux exclus pour un appel :
+ * - contenu tiers (`untrustedInput`) : les deux ;
+ * - sinon, chaque canal dont la fonctionnalité est éteinte dans le Marketplace.
+ * @param {boolean} untrustedInput
+ * @returns {Promise<Set<string>>}
+ */
+async function canauxExclus(untrustedInput) {
+    const exclus = new Set(untrustedInput ? LOCAL_AGENT_PROVIDERS : []);
+    for (const [canal, feature] of Object.entries(FONCTIONNALITE_DU_CANAL)) {
+        if (!exclus.has(canal) && !(await features.estActive(feature))) exclus.add(canal);
+    }
+    return exclus;
+}
+
 /**
  * Fournisseur API à utiliser à la place d'un canal local : le fournisseur par
  * défaut s'il n'est pas lui-même local, sinon Gemini.
@@ -364,9 +392,10 @@ async function executeAgentWithFallback(params) {
         if (directProvider === 'mcp') directProvider = 'gemini';
         // Le drapeau de réentrée est partagé entre requêtes : une requête
         // portant du contenu tiers peut arriver ici pendant qu'une autre
-        // parcourt la cascade. Le filtre doit donc s'appliquer aussi.
+        // parcourt la cascade. Le filtre doit donc s'appliquer aussi, comme
+        // l'état des canaux dans le Marketplace.
         let directModel = modelOverride || (dbAgent && dbAgent.model_override) || null;
-        if (untrustedInput && LOCAL_AGENT_PROVIDERS.has(directProvider)) {
+        if ((await canauxExclus(untrustedInput)).has(directProvider)) {
             directProvider = await defaultApiProvider();
             directModel = null;
         }
@@ -418,12 +447,14 @@ async function runFallbackCascade(params) {
     let targetProvider = providerOverride || (dbAgent && dbAgent.provider_override) || defaultProvider;
     let targetModel = modelOverride || (dbAgent && dbAgent.model_override) || null;
 
-    // Contenu tiers : une cible locale (fournisseur ou override d'agent) est
-    // remplacée par un fournisseur API. Le modèle demandé est abandonné avec
-    // elle : pour le canal CLI, c'est un nom de binaire (« claude »), pas un
-    // modèle. Fait avant la résolution du modèle par défaut, qui s'applique
-    // alors au fournisseur de remplacement s'il est le fournisseur configuré.
-    if (untrustedInput && LOCAL_AGENT_PROVIDERS.has(targetProvider)) {
+    // Contenu tiers, ou canal éteint dans le Marketplace : une cible locale
+    // (fournisseur ou override d'agent) est remplacée par un fournisseur API.
+    // Le modèle demandé est abandonné avec elle : pour le canal CLI, c'est un
+    // nom de binaire (« claude »), pas un modèle. Fait avant la résolution du
+    // modèle par défaut, qui s'applique alors au fournisseur de remplacement
+    // s'il est le fournisseur configuré.
+    const exclus = await canauxExclus(untrustedInput);
+    if (exclus.has(targetProvider)) {
         targetProvider = await defaultApiProvider();
         targetModel = null;
     }
@@ -437,11 +468,11 @@ async function runFallbackCascade(params) {
         targetModel = (await db.getSetting('default_chat_model', '')) || null;
     }
 
-    // Contenu tiers : les stratégies « cli » et « mcp » ne s'appliquent pas.
-    if (!untrustedInput && strategy === 'cli') {
+    // Les stratégies « cli » et « mcp » ne s'appliquent pas à un canal exclu.
+    if (strategy === 'cli' && !exclus.has('cli')) {
         targetProvider = 'cli';
         targetModel = status.defaultCliAgent || 'gemini';
-    } else if (!untrustedInput && strategy === 'mcp') {
+    } else if (strategy === 'mcp' && !exclus.has('mcp')) {
         // Stratégie « mcp » : passer par le tool call_agent du serveur local,
         // le même chemin que les clients MCP externes.
         targetProvider = 'mcp';
@@ -493,11 +524,10 @@ async function runFallbackCascade(params) {
         }
     }
 
-    const plan = untrustedInput
-        ? attempts.filter((attempt) => !LOCAL_AGENT_PROVIDERS.has(attempt.provider))
-        : attempts;
+    const plan = attempts.filter((attempt) => !exclus.has(attempt.provider));
     if (plan.length < attempts.length) {
-        console.error(`[SmartFallback] Contenu tiers pour '${personaId}' : canaux CLI et MCP locaux exclus de la cascade.`);
+        const raison = untrustedInput ? 'contenu tiers' : 'fonctionnalité désactivée dans le Marketplace';
+        console.error(`[SmartFallback] Canaux exclus de la cascade pour '${personaId}' (${raison}) : ${[...exclus].join(', ')}.`);
     }
 
     let lastError = null;
@@ -546,5 +576,8 @@ async function runFallbackCascade(params) {
 module.exports = {
     getExecutionChannelsStatus,
     executeAgentWithFallback,
-    isKeyConfigurationError
+    isKeyConfigurationError,
+    // Tests : la dernière garde des canaux locaux n'est pas atteignable par la
+    // cascade, qui les écarte avant (agentFallbackStrategies.test.js, M5).
+    __invokeSingleProviderForTests: invokeSingleProvider
 };

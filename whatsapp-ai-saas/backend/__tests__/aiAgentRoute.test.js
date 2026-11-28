@@ -15,6 +15,7 @@ import { buildCopilotAgentRequest } from '../../src/utils/copilotRequest.js';
 
 // require() et non import : une seule instance de db pour le test et la route.
 const db = require('../db');
+const features = require('../features');
 const externalAgentRunner = require('../services/externalAgentRunner');
 const geminiService = require('../geminiService');
 
@@ -33,6 +34,9 @@ describe('S3 — POST /api/ai/agent : la conversation WhatsApp ne va pas aux age
         db.__setDbFileForTests(':memory:');
         await db.initDB();
         // Pire cas : l'utilisateur a choisi Claude Code pour tout, sans repli.
+        // Le canal CLI suppose agents-cli-locaux active (éteinte par défaut sur
+        // une base neuve depuis la décision du 28/11, ticket #30).
+        await features.definir('agents-cli-locaux', true);
         await db.setSetting('default_ai_provider', 'gemini');
         await db.setSetting('ai_execution_strategy', 'cli');
         await db.setSetting('default_cli_agent', 'claude');

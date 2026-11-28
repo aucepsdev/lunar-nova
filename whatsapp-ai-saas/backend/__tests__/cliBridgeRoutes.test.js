@@ -143,6 +143,26 @@ describe('routes/cliBridge.js — Endpoints REST pour le Bridge CLI', { timeout:
         expect(body.details.personas).toBeDefined();
     });
 
+    // Marketplace (ticket #30, PR 2) : le mode mcp appelle le serveur MCP, il
+    // exige donc mcp-externe, en plus d'agents-cli-locaux qui garde la route.
+    it('POST /api/cli/test-bridge en mode mcp est refusé quand mcp-externe est éteinte', async () => {
+        const features = require('../features');
+        const essai = () => fetch(`${baseUrl}/api/cli/test-bridge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: 'mcp', agent: 'list_agents', prompt: '' })
+        });
+        await features.definir('mcp-externe', false);
+        try {
+            const res = await essai();
+            expect(res.status).toBe(403);
+            expect(await res.json()).toMatchObject({ success: false, code: 'FEATURE_DISABLED', feature: 'mcp-externe' });
+        } finally {
+            await features.definir('mcp-externe', true);
+        }
+        expect((await essai()).status).toBe(200);
+    });
+
     it('POST /api/cli/test-bridge rejette un prompt vide en mode CLI', async () => {
         const res = await fetch(`${baseUrl}/api/cli/test-bridge`, {
             method: 'POST',

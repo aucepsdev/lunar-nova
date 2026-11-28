@@ -253,3 +253,45 @@ describe('voiceNoteQueue — confidentialité des journaux', () => {
         expect(journal).toMatch(/transcrit/);
     });
 });
+
+// Marketplace, ticket #30, PR 2 : désactiver notes-vocales vide la file, et
+// une transcription déjà lancée n'est pas réinjectée.
+describe('voiceNoteQueue — fonctionnalité éteinte en cours de route', () => {
+    it('vider() abandonne les vocaux en attente, et le dit', async () => {
+        const bloque = deferred();
+        const { queue, deps, logs } = makeQueue({
+            transcribe: vi.fn(() => bloque.promise.then(() => ({ text: 'ok', empty: false })))
+        });
+
+        await queue.submit(job('A'));   // en cours de transcription
+        await queue.submit(job('B'));   // en attente
+        await queue.submit(job('C'));   // en attente
+
+        expect(queue.vider()).toBe(2);
+        expect(queue.pendingCount()).toBe(0);
+        expect(logs.some((l) => /2 vocaux en attente abandonnés/.test(l))).toBe(true);
+
+        bloque.resolve();
+        await queue.idle();
+        expect(deps.transcribe).toHaveBeenCalledTimes(1);
+        expect(queue.stats()).toMatchObject({ transcrits: 1, abandonnes: 2 });
+    });
+
+    it('une transcription terminée après la désactivation n\'est pas réinjectée', async () => {
+        let active = true;
+        const bloque = deferred();
+        const { queue, deps, logs } = makeQueue({
+            isEnabled: vi.fn(async () => active),
+            transcribe: vi.fn(() => bloque.promise.then(() => ({ text: 'je veux deux pagnes', empty: false })))
+        });
+
+        expect(await queue.submit(job('A'))).toEqual({ accepted: true });
+        active = false;
+        bloque.resolve();
+        await queue.idle();
+
+        expect(deps.onTranscribed).not.toHaveBeenCalled();
+        expect(queue.stats()).toMatchObject({ transcrits: 1, abandonnes: 1 });
+        expect(logs.some((l) => /désactivée entre-temps/.test(l))).toBe(true);
+    });
+});

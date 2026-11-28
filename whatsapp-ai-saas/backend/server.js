@@ -8,8 +8,8 @@ dotenv.config({ quiet: true });
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const orderListener = require('./orderListener');
 const { requireApiToken } = require('./apiAuth');
+const { controleFonctionnalites, routeurParesseux } = require('./controleFonctionnalites');
 const db = require('./db');
 const waDriver = require('./wa/waDriver');
 
@@ -59,7 +59,7 @@ app.use(cors({
 }));
 
 // Toute l'API est authentifiée. Enregistré avant les routers pour couvrir aussi
-// ceux montés plus bas (y compris orderListener.registerRoutes en fin de fichier).
+// ceux montés plus bas (y compris le routeur des commandes, en fin de fichier).
 // Le preflight CORS est traité et terminé par le middleware cors ci-dessus, il
 // n'atteint donc jamais cette vérification.
 //
@@ -72,6 +72,12 @@ app.use(cors({
 // requireApiToken ne lit que les en-têtes, le chemin et la query : rien ne
 // l'oblige à attendre le corps.
 app.use(requireApiToken);
+
+// Marketplace (ticket #30) : une route d'une fonctionnalité éteinte répond
+// 403 FEATURE_DISABLED, quel que soit le routeur qui la sert. Après le jeton,
+// pour ne rien révéler sans lui ; avant l'analyse des corps, pour qu'une
+// requête refusée ne coûte qu'une lecture de la table `features`.
+app.use(controleFonctionnalites);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -119,19 +125,21 @@ const heavyLimiter = rateLimit({
 // La connexion Google (/api/auth/google, callback loopback) a été retirée le
 // 26/11/2026 — c'était la seule route publique, accessible sans jeton.
 
+// Routeurs d'une seule fonctionnalité, requis seulement à la première requête
+// qui passe le contrôle ci-dessus, donc seulement si leur fonctionnalité est
+// active (règle 5.2 de docs/MARKETPLACE_ETUDE_DEPOTS.md : une fonctionnalité
+// éteinte ne coûte rien). Les routeurs qui mélangent plusieurs fonctionnalités,
+// plus bas, restent chargés au démarrage.
+
 // --- Prospection (Google Maps API) ---
-const prospectionRouter = require('./routes/prospection');
-app.use('/api/prospection', heavyLimiter, prospectionRouter);
+app.use('/api/prospection', heavyLimiter, routeurParesseux('prospection', () => require('./routes/prospection')));
 
 // --- Agentic Pipeline (Prospection -> Contacts -> Antoine -> Clarisse/Kanban) ---
-const pipelineRouter = require('./routes/pipeline');
-app.use('/api/pipeline', pipelineRouter);
+app.use('/api/pipeline', routeurParesseux('pipeline', () => require('./routes/pipeline')));
 
-const documentsRouter = require('./routes/documents');
-app.use('/api/documents', documentsRouter);
+app.use('/api/documents', routeurParesseux('redaction', () => require('./routes/documents')));
 
-const invoicesRouter = require('./routes/invoices');
-app.use('/api/invoices', invoicesRouter);
+app.use('/api/invoices', routeurParesseux('devis-factures', () => require('./routes/invoices')));
 
 // Chaque router porte désormais un préfixe de montage explicite et déclare des
 // chemins relatifs. Quatre d'entre eux étaient montés sur '/' en répétant leur
@@ -144,9 +152,9 @@ app.use('/api/invoices', invoicesRouter);
 const settingsAgentsRouter = require('./routes/settings_and_agents');
 app.use('/api', settingsAgentsRouter);
 
-// Marketplace des fonctionnalités (ticket #30) : catalogue et état. Le
-// contrôle sur les autres voies (API, MCP, CLI, interface) arrive avec les
-// PR suivantes ; cette route n'a encore aucun effet sur elles.
+// Marketplace des fonctionnalités (ticket #30) : catalogue et état. L'API
+// locale le respecte (controleFonctionnalites, plus haut) ; le MCP, le CLI et
+// l'interface suivront avec les PR 3 et 4.
 const featuresRouter = require('./routes/features');
 app.use('/api/features', featuresRouter);
 
@@ -173,8 +181,10 @@ app.use('/api/cli', cliBridgeRouter);
 const systemRouter = require('./routes/system');
 app.use('/api', systemRouter);
 
-// Phase 21: Intelligent Order Listener
-orderListener.registerRoutes(app);
+// Phase 21: Intelligent Order Listener. Chargé à la demande comme les routeurs
+// plus haut : ses écoutes et sa file de vocaux ne démarrent jamais si
+// `commandes` est éteinte.
+app.use('/api/orders', routeurParesseux('commandes', () => require('./orderListener').creerRouteur()));
 
 // Initialisation DB explicite au démarrage (constat N14) : le module db.js ne
 // fait plus de « fail fast » au require ni n'appelle process.exit lui-même.

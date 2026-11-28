@@ -19,7 +19,10 @@
  *
  * DÉSACTIVÉE PAR DÉFAUT — chaque vocal coûte ~30 s de processeur (moteur local)
  * ou des jetons (moteur distant). Aucune de ces deux dépenses ne se déclenche
- * sans que l'utilisateur l'ait choisie (réglage `voice_notes_transcription`).
+ * sans que l'utilisateur l'ait choisie : fonctionnalité `notes-vocales` du
+ * Marketplace, qui remplace le réglage `voice_notes_transcription`. Éteinte en
+ * cours de route, elle vide la file (`vider`), et une transcription déjà
+ * lancée n'est pas réinjectée.
  *
  * ÉCHECS NOMMÉS — un vocal qu'on n'a pas su lire est journalisé avec sa cause,
  * jamais converti en message vide. « Rien entendu » (`empty`) et « échec »
@@ -79,7 +82,8 @@ function createVoiceNoteQueue({
         vides: 0,
         echecsExtraction: 0,
         echecsTranscription: 0,
-        echecsReinjection: 0
+        echecsReinjection: 0,
+        abandonnes: 0
     };
 
     const remember = (key) => {
@@ -128,6 +132,16 @@ function createVoiceNoteQueue({
                 log(`[VoiceQueue] Vocal de [${redactContact(job.contact)}] transcrit `
                     + `(${result.engine || 'moteur ?'}) : ${redactMessage(result.text)}`);
 
+                // La fonctionnalité a pu être éteinte pendant la transcription.
+                let encoreActive = false;
+                try { encoreActive = await isEnabled(); } catch { encoreActive = false; }
+                if (!encoreActive) {
+                    stats.abandonnes++;
+                    log(`[VoiceQueue] Vocal de [${redactContact(job.contact)}] transcrit, mais non traité : `
+                        + 'la transcription des vocaux a été désactivée entre-temps.');
+                    continue;
+                }
+
                 // La transcription a réussi : si la suite échoue, ce n'est pas
                 // un échec de transcription, et le journal ne doit pas le dire.
                 try {
@@ -161,7 +175,7 @@ function createVoiceNoteQueue({
         if (!enabled) {
             if (!desactivationSignalee) {
                 desactivationSignalee = true;
-                log('[VoiceQueue] Vocal reçu mais transcription désactivée (réglage voice_notes_transcription). '
+                log('[VoiceQueue] Vocal reçu mais transcription désactivée (fonctionnalité notes-vocales). '
                     + 'Ce message n\'apparaîtra qu\'une fois.');
             }
             return refuse('DESACTIVE');
@@ -201,9 +215,29 @@ function createVoiceNoteQueue({
         return new Promise((resolve) => drainWaiters.push(resolve));
     }
 
+    /**
+     * Abandonne les vocaux en attente : la fonctionnalité vient d'être éteinte.
+     * La transcription en cours, elle, ne s'interrompt pas (le moteur local est
+     * un processus à part) ; le worker vérifie l'état avant de réinjecter.
+     * @returns {number} le nombre de vocaux abandonnés
+     */
+    function vider() {
+        const n = pending.length;
+        pending.length = 0;
+        if (n) {
+            stats.abandonnes += n;
+            const pluriel = n > 1;
+            log(`[VoiceQueue] Transcription des vocaux désactivée : ${n} ${pluriel ? 'vocaux' : 'vocal'} `
+                + `en attente abandonné${pluriel ? 's' : ''}.`);
+        }
+        notifyIdle();
+        return n;
+    }
+
     return {
         submit,
         idle,
+        vider,
         pendingCount: () => pending.length,
         isRunning: () => running,
         stats: () => ({ ...stats, enAttente: pending.length })

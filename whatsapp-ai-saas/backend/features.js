@@ -14,6 +14,11 @@
  *
  * Aucune voie d'accès externe (outil MCP, commande CLI) ne doit appeler
  * `definir` : seul l'utilisateur, depuis l'application, change l'état.
+ *
+ * Tâches de fond (ticket #30, §4.5) : un module qui démarre quelque chose en
+ * arrière-plan enregistre son arrêt avec `quandDesactivee`. `definir` l'exécute
+ * quand la fonctionnalité est éteinte. Les arrêts vivent dans le processus du
+ * backend, celui qui reçoit PUT /api/features.
  */
 const db = require('./db');
 const { fonctionnalites, parId } = require('./featuresCatalogue');
@@ -113,7 +118,38 @@ async function definir(id, enabled) {
          ON CONFLICT(id) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`,
         [id, enabled ? 1 : 0]
     );
+    if (!enabled) await executerArrets(id);
     return { ...f, enabled };
 }
 
-module.exports = { etat, estActive, definir, ErreurFonctionnalite };
+const arrets = new Map();
+
+/**
+ * Enregistre l'arrêt d'une tâche de fond, exécuté chaque fois que la
+ * fonctionnalité est éteinte.
+ * @param {string} id
+ * @param {() => (void|Promise<void>)} arreter
+ * @returns {() => void} retire l'enregistrement
+ * @throws {ErreurFonctionnalite} si la fonctionnalité est inconnue
+ */
+function quandDesactivee(id, arreter) {
+    fonctionnalite(id);
+    if (!arrets.has(id)) arrets.set(id, new Set());
+    arrets.get(id).add(arreter);
+    return () => arrets.get(id).delete(arreter);
+}
+
+// Un arrêt en échec (page déjà fermée…) est journalisé sans bloquer les
+// autres : l'état est déjà écrit, et la fonctionnalité est éteinte pour toutes
+// les voies qui le consultent.
+async function executerArrets(id) {
+    for (const arreter of arrets.get(id) || []) {
+        try {
+            await arreter();
+        } catch (err) {
+            console.error(`[Marketplace] Arrêt de « ${id} » incomplet : ${err.message}`);
+        }
+    }
+}
+
+module.exports = { etat, estActive, definir, quandDesactivee, ErreurFonctionnalite };

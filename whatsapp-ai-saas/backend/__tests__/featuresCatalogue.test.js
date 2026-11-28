@@ -27,6 +27,17 @@ const RISQUES = ['automatisation-whatsapp', 'acces-externe', 'execution-locale']
 
 const toutes = (texte, motif) => [...texte.matchAll(motif)].map((m) => m.slice(1));
 
+const routesDeRouteur = (rel, prefixe) => toutes(lire(rel), /router\.(get|post|put|patch|delete)\(\s*'([^']+)'/g)
+    .map(([methode, chemin]) => `${methode.toUpperCase()} ${chemin === '/' ? prefixe : prefixe + chemin}`);
+
+// Routeurs chargés à la demande (PR 2) :
+// app.use('/prefixe', [intergiciels,] routeurParesseux('fonctionnalite', () => require('./fichier')[.creerRouteur()]))
+function montagesParesseux() {
+    return toutes(lire('backend/server.js'),
+        /app\.use\('([^']+)',\s*(?:\w+\s*,\s*)*routeurParesseux\('([\w-]+)',\s*\(\)\s*=>\s*require\('\.\/([\w/-]+)'\)(?:\.\w+\(\))?\)\)/g)
+        .map(([prefixe, feature, fichier]) => ({ prefixe, feature, rel: `backend/${fichier}.js` }));
+}
+
 function routesApi() {
     const server = lire('backend/server.js');
     // Routeurs : const x = require('./routes/f') ou const { x } = require(...)
@@ -35,21 +46,14 @@ function routesApi() {
         ...toutes(server, /const\s*\{\s*(\w+)\s*\}\s*=\s*require\('\.\/routes\/([\w-]+)'\)/g),
     ]);
     const routes = [];
-    const routesDe = (rel, prefixe) => {
-        const texte = lire(rel);
-        for (const [methode, chemin] of toutes(texte, /router\.(get|post|put|patch|delete)\(\s*'([^']+)'/g)) {
-            routes.push(`${methode.toUpperCase()} ${chemin === '/' ? prefixe : prefixe + chemin}`);
-        }
-    };
     // Montages : app.use('/prefixe', [intergiciels,] routeur) ou routeur()
     for (const [prefixe, ident] of toutes(server, /app\.use\('([^']+)',\s*(?:\w+\s*,\s*)*(\w+)(?:\(\))?\s*\)/g)) {
-        if (fichierDe.has(ident)) routesDe(`backend/routes/${fichierDe.get(ident)}.js`, prefixe);
+        if (fichierDe.has(ident)) routes.push(...routesDeRouteur(`backend/routes/${fichierDe.get(ident)}.js`, prefixe));
     }
+    for (const { prefixe, rel } of montagesParesseux()) routes.push(...routesDeRouteur(rel, prefixe));
     // Routes déclarées directement sur l'application
-    for (const rel of ['backend/server.js', 'backend/orderListener.js']) {
-        for (const [methode, chemin] of toutes(lire(rel), /app\.(get|post|put|patch|delete)\(\s*'([^']+)'/g)) {
-            routes.push(`${methode.toUpperCase()} ${chemin}`);
-        }
+    for (const [methode, chemin] of toutes(server, /app\.(get|post|put|patch|delete)\(\s*'([^']+)'/g)) {
+        routes.push(`${methode.toUpperCase()} ${chemin}`);
     }
     return routes;
 }
@@ -190,6 +194,20 @@ describe('catalogue — inventaire confronté au code', () => {
             expect(orphelins).toEqual([]);
         });
     }
+
+    // Règle 5.2 de l'étude (PR 2) : un routeur chargé à la demande ne doit
+    // servir que la fonctionnalité qu'il annonce. Sinon, une autre
+    // fonctionnalité active le chargerait, et la règle ne tiendrait plus.
+    it('chaque routeur chargé à la demande ne sert que la fonctionnalité qu\'il annonce', () => {
+        const montages = montagesParesseux();
+        expect(montages.map((m) => m.feature).sort())
+            .toEqual(['commandes', 'devis-factures', 'pipeline', 'prospection', 'redaction']);
+        const fonctionnaliteDe = new Map(catalogue.fonctionnalites.flatMap((f) => f.surfaces.api.map((a) => [a, f.id])));
+        const ecarts = montages.flatMap(({ prefixe, feature, rel }) => routesDeRouteur(rel, prefixe)
+            .filter((route) => fonctionnaliteDe.get(route) !== feature)
+            .map((route) => `${rel} (${feature}) : ${route} → ${fonctionnaliteDe.get(route)}`));
+        expect(ecarts).toEqual([]);
+    });
 });
 
 // ── 3. Livraison ────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const db = require('../db');
+const features = require('../features');
 const {
     detectInstalledClis,
     executeExternalCli,
@@ -89,6 +90,18 @@ router.post('/test-bridge', async (req, res) => {
         return res.status(400).json({
             success: false,
             error: `Mode de test inconnu : '${mode}'. Modes acceptés : ${TEST_BRIDGE_MODES.join(', ')}.`
+        });
+    }
+
+    // La route relève d'agents-cli-locaux (contrôle des routes, server.js). Le
+    // mode « mcp » appelle en plus le serveur MCP : il exige mcp-externe, comme
+    // le canal mcp du routeur d'agents (Marketplace, ticket #30).
+    if (mode === 'mcp' && !(await features.estActive('mcp-externe'))) {
+        return res.status(403).json({
+            success: false,
+            error: 'La fonctionnalité « mcp-externe » est désactivée.',
+            code: 'FEATURE_DISABLED',
+            feature: 'mcp-externe'
         });
     }
 

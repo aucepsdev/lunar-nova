@@ -1,4 +1,6 @@
+const express = require('express');
 const db = require('./db');
+const features = require('./features');
 const aiController = require('./aiController');
 const { redactMessage, redactContact } = require('./logRedact');
 const { getSelectorRegistry, inPageHealth, CRITICAL_KEYS } = require('./wa/waSelectors');
@@ -21,7 +23,9 @@ function getVoiceQueue() {
     const transcriptionService = require('./services/transcriptionService');
 
     voiceQueue = createVoiceNoteQueue({
-        isEnabled: async () => (await db.getSetting('voice_notes_transcription', 'off')) === 'on',
+        // Fonctionnalité notes-vocales du Marketplace : elle remplace le réglage
+        // voice_notes_transcription, repris par la migration v13.
+        isEnabled: () => features.estActive('notes-vocales'),
         extract: (job) => voiceNoteService.extractVoiceNoteFromPage(job.page, job.messageId),
         transcribe: ({ audio, mimeType }) => transcriptionService.transcribe({ audio, mimeType }),
         onTranscribed: (job, result) =>
@@ -263,8 +267,36 @@ async function detachObserver(instanceId) {
     observedPages.delete(instanceId);
 }
 
-function registerRoutes(app) {
-    app.post('/api/orders/listen/start', async (req, res) => {
+// Arrêts à la désactivation (Marketplace, ticket #30, §4.5). Enregistrés au
+// chargement du module, qui n'a lieu que si `commandes` est active.
+//
+// commandes : toutes les écoutes sont détachées et les flux SSE fermés. Les
+// écrans connectés reçoivent la fin du flux, et toute reconnexion se heurte au
+// 403 du contrôle des routes.
+async function arreterEcoutes() {
+    for (const instanceId of [...activeObservers]) await detachObserver(instanceId);
+    for (const clients of sseClients.values()) {
+        for (const res of clients) res.end();
+    }
+    sseClients.clear();
+}
+features.quandDesactivee('commandes', arreterEcoutes);
+
+// notes-vocales : les vocaux en attente sont abandonnés. Une transcription
+// déjà lancée se termine, mais la file ne réinjecte pas son texte.
+features.quandDesactivee('notes-vocales', () => {
+    if (voiceQueue) voiceQueue.vider();
+});
+
+/**
+ * Routeur des commandes, monté sur /api/orders par server.js. Il remplace
+ * registerRoutes(app), qui déclarait les mêmes routes directement sur
+ * l'application : un routeur peut être chargé à la demande.
+ */
+function creerRouteur() {
+    const router = express.Router();
+
+    router.post('/listen/start', async (req, res) => {
         const { instance_id } = req.body;
         if (!instance_id) return res.status(400).json({ error: 'Missing instance_id' });
         
@@ -277,7 +309,7 @@ function registerRoutes(app) {
         }
     });
 
-    app.post('/api/orders/listen/stop', async (req, res) => {
+    router.post('/listen/stop', async (req, res) => {
         const { instance_id } = req.body;
         if (!instance_id) return res.status(400).json({ error: 'Missing instance_id' });
         
@@ -285,7 +317,7 @@ function registerRoutes(app) {
         res.json({ status: 'success' });
     });
 
-    app.get('/api/orders/stream/:instance_id', (req, res) => {
+    router.get('/stream/:instance_id', (req, res) => {
         const id = req.params.instance_id;
         
         // CRITICAL: Prevent Node from killing the TCP Keep-Alive after 5s
@@ -303,18 +335,20 @@ function registerRoutes(app) {
 
         const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 15000);
 
-        req.on('close', () => {
+        // `close` de la réponse : émis quand le client se déconnecte, et aussi
+        // quand le serveur termine le flux (arrêt de `commandes`, plus haut).
+        res.on('close', () => {
             clearInterval(heartbeat);
             const clients = sseClients.get(id) || [];
             sseClients.set(id, clients.filter(c => c !== res));
         });
     });
 
-    app.get('/api/orders/listen/status', (req, res) => {
+    router.get('/listen/status', (req, res) => {
         res.json({ status: 'success', active_listeners: Array.from(activeObservers) });
     });
     
-    app.get('/api/orders', async (req, res) => {
+    router.get('/', async (req, res) => {
         try {
             const { instance_id, limit = 50 } = req.query;
             let result;
@@ -329,8 +363,8 @@ function registerRoutes(app) {
         }
     });
 
-    // DELETE Routes for IOL (Inside registerRoutes)
-    app.delete('/api/orders/bulk-delete', async (req, res) => {
+    // Suppression des commandes détectées
+    router.delete('/bulk-delete', async (req, res) => {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) return res.status(400).json({ status: 'error', error: 'Missing IDs array' });
 
@@ -343,7 +377,7 @@ function registerRoutes(app) {
         }
     });
 
-    app.delete('/api/orders/:id', async (req, res) => {
+    router.delete('/:id', async (req, res) => {
         const { id } = req.params;
         try {
             await db.pool.query(`DELETE FROM detected_orders WHERE id = $1`, [id]);
@@ -352,6 +386,8 @@ function registerRoutes(app) {
             res.status(500).json({ status: 'error', error: err.message });
         }
     });
+
+    return router;
 }
 
-module.exports = { registerRoutes };
+module.exports = { creerRouteur };

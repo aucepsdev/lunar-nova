@@ -20,7 +20,9 @@ const db = require('../db');
 
 const externalAgentRunner = require('../services/externalAgentRunner');
 const geminiService = require('../geminiService');
-const { executeAgentWithFallback } = require('../services/agentFallbackRouter');
+const features = require('../features');
+const mcpServer = require('../mcp/wacopiloteMcpServer');
+const { executeAgentWithFallback, __invokeSingleProviderForTests } = require('../services/agentFallbackRouter');
 
 describe('agentFallbackRouter — stratégies d\'exécution (T2-T5, substitutions)', () => {
     // Exécuteur CLI : espion par défaut (les tests qui déclenchent le CLI
@@ -35,6 +37,11 @@ describe('agentFallbackRouter — stratégies d\'exécution (T2-T5, substitution
         db.__setDbFileForTests(':memory:');
         await db.initDB();
         await db.setSetting('default_ai_provider', 'gemini');
+        // agents-cli-locaux est éteinte par défaut sur une base neuve (décision
+        // du mainteneur du 28/11, ticket #30). Ces tests portent sur les
+        // stratégies : le canal CLI est ouvert ici, et son extinction est
+        // testée à part (M1 à M4, en fin de fichier).
+        await features.definir('agents-cli-locaux', true);
         // CLIs « installés » de façon déterministe (détection système substituée).
         externalAgentRunner.detectInstalledClis = vi.fn(async () => [
             { command: 'gemini', installed: true, version: '0.57.0-mock' },
@@ -282,5 +289,106 @@ describe('agentFallbackRouter — stratégies d\'exécution (T2-T5, substitution
         const [, untrusted] = await concurrent(true);
         expect(untrusted.response).toBe('Réponse API Gemini (mock)');
         expect(externalAgentRunner.executeExternalCli).not.toHaveBeenCalled();
+    });
+
+    // ── Marketplace (ticket #30, PR 2) : canaux locaux éteints ─────────────
+    // agents-cli-locaux ouvre le canal « cli », mcp-externe le canal « mcp ».
+    // Éteints, ils sont exclus comme pour un contenu tiers, même sans lui.
+
+    describe('canaux locaux éteints dans le Marketplace', () => {
+        const handleToolCallOriginal = mcpServer.handleToolCall;
+        const cliQuiRepond = () => vi.fn(async () => ({
+            success: true, exitCode: 0, stdout: 'NE DOIT PAS ÊTRE APPELÉ', stderr: '', executionTimeMs: 1
+        }));
+
+        afterEach(async () => {
+            mcpServer.handleToolCall = handleToolCallOriginal;
+            await features.definir('agents-cli-locaux', true);
+            await features.definir('mcp-externe', true);
+        });
+
+        it('M1 — agents-cli-locaux éteinte : la stratégie « cli » est ignorée au profit de l\'API', async () => {
+            externalAgentRunner.executeExternalCli = cliQuiRepond();
+            await db.setSetting('ai_execution_strategy', 'cli');
+            await db.setSetting('default_cli_agent', 'claude');
+            await db.setSetting('auto_fallback_enabled', 'false');
+            await features.definir('agents-cli-locaux', false);
+
+            const result = await executeAgentWithFallback({ personaId: 'copywriter', message: 'Bonjour' });
+
+            expect(result.response).toBe('Réponse API Gemini (mock)');
+            expect(externalAgentRunner.executeExternalCli).not.toHaveBeenCalled();
+        });
+
+        it('M2 — agents-cli-locaux éteinte : la cascade automatique ne tente pas les CLI, et une cible forcée est remplacée', async () => {
+            externalAgentRunner.executeExternalCli = cliQuiRepond();
+            await features.definir('agents-cli-locaux', false);
+            await db.setSetting('ai_execution_strategy', 'api');
+            await db.setSetting('auto_fallback_enabled', 'true');
+            geminiService.chatWithAgent.mockImplementationOnce(async () => {
+                throw new Error('API Gemini indisponible (mock)');
+            });
+
+            // Le MCP reste ouvert : il rattrape l'échec de l'API.
+            await executeAgentWithFallback({ personaId: 'copywriter', message: 'Bonjour' });
+            expect(externalAgentRunner.executeExternalCli).not.toHaveBeenCalled();
+
+            await db.setSetting('auto_fallback_enabled', 'false');
+            const force = await executeAgentWithFallback({
+                personaId: 'copywriter', message: 'Bonjour', providerOverride: 'cli', modelOverride: 'claude'
+            });
+            expect(force.response).toBe('Réponse API Gemini (mock)');
+            expect(externalAgentRunner.executeExternalCli).not.toHaveBeenCalled();
+        });
+
+        it('M3 — mcp-externe éteinte : la stratégie « mcp » n\'appelle pas le serveur MCP', async () => {
+            mcpServer.handleToolCall = vi.fn(async () => ({ response: 'NE DOIT PAS ÊTRE APPELÉ' }));
+            await db.setSetting('ai_execution_strategy', 'mcp');
+            await db.setSetting('auto_fallback_enabled', 'true');
+            await features.definir('mcp-externe', false);
+
+            const result = await executeAgentWithFallback({ personaId: 'copywriter', message: 'Bonjour' });
+
+            expect(result.response).toBe('Réponse API Gemini (mock)');
+            expect(mcpServer.handleToolCall).not.toHaveBeenCalled();
+
+            // Témoin : rallumée, la même stratégie passe bien par le serveur MCP.
+            await features.definir('mcp-externe', true);
+            await executeAgentWithFallback({ personaId: 'copywriter', message: 'Bonjour' });
+            expect(mcpServer.handleToolCall).toHaveBeenCalledTimes(1);
+        });
+
+        it('M4 — le chemin direct (réentrée) respecte aussi l\'état des canaux', async () => {
+            await db.setSetting('ai_execution_strategy', 'api');
+            await db.setSetting('auto_fallback_enabled', 'false');
+            externalAgentRunner.executeExternalCli = vi.fn(async () => ({
+                success: true, exitCode: 0, stdout: 'Réponse Claude (mock)', stderr: '', executionTimeMs: 1
+            }));
+            await features.definir('agents-cli-locaux', false);
+
+            const first = executeAgentWithFallback({ personaId: 'copywriter', message: 'A' });
+            const second = executeAgentWithFallback({
+                personaId: 'copywriter', message: 'B', providerOverride: 'cli', modelOverride: 'claude'
+            });
+            const [, direct] = await Promise.all([first, second]);
+
+            expect(direct.response).toBe('Réponse API Gemini (mock)');
+            expect(externalAgentRunner.executeExternalCli).not.toHaveBeenCalled();
+        });
+
+        it('M5 — dernière garde : un canal éteint invoqué directement est refusé, sans rien exécuter', async () => {
+            externalAgentRunner.executeExternalCli = cliQuiRepond();
+            mcpServer.handleToolCall = vi.fn(async () => ({ response: 'NE DOIT PAS ÊTRE APPELÉ' }));
+            await features.definir('agents-cli-locaux', false);
+            await features.definir('mcp-externe', false);
+
+            await expect(__invokeSingleProviderForTests({ provider: 'cli', model: 'claude', personaId: 'copywriter', message: 'A' }))
+                .rejects.toThrow('Canal « cli » indisponible : la fonctionnalité « agents-cli-locaux » est désactivée.');
+            await expect(__invokeSingleProviderForTests({ provider: 'mcp', model: null, personaId: 'copywriter', message: 'A' }))
+                .rejects.toThrow('Canal « mcp » indisponible : la fonctionnalité « mcp-externe » est désactivée.');
+
+            expect(externalAgentRunner.executeExternalCli).not.toHaveBeenCalled();
+            expect(mcpServer.handleToolCall).not.toHaveBeenCalled();
+        });
     });
 });
