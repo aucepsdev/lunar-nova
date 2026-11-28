@@ -1,7 +1,12 @@
-// D1 (docs/audit.md) : la modification d'un agent personnalisé échouait.
-// La clause ON CONFLICT … DO UPDATE réutilisait $2…$6, que la couche
-// pg -> SQLite de db.js convertit en « ? » positionnels : 11 marqueurs pour
-// 6 valeurs, et `NOT NULL constraint failed: ai_agents.name`.
+// D1 (docs/audit.md) : avant la v1.50.2, la modification d'un agent
+// personnalisé échouait sur `NOT NULL constraint failed: ai_agents.name`.
+// Depuis, db.js réordonne les paramètres selon le numéro de chaque $n, et la
+// modification fonctionne (cf. dbPlaceholders.test.js).
+//
+// Ce fichier protège :
+// - la création puis la modification d'un agent (non-régression) ;
+// - le refus en 400 d'un agent sans nom ou sans instructions, au lieu de
+//   l'erreur SQLite renvoyée en 500.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import http from 'http';

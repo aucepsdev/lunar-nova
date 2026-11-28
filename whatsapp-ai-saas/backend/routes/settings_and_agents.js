@@ -115,11 +115,12 @@ router.post('/agents', async (req, res) => {
     }
     try {
         const agentId = id || `agent_${Date.now()}`;
-        // `excluded.<colonne>` désigne la valeur proposée par l'INSERT. La
-        // version précédente réutilisait $2…$6 dans la clause DO UPDATE : la
-        // couche pg -> SQLite de db.js convertit chaque $n en « ? » positionnel,
-        // donc 11 marqueurs pour 6 valeurs, et la mise à jour d'un agent
-        // existant échouait sur `NOT NULL constraint failed: ai_agents.name`.
+        // `excluded.<colonne>` désigne la valeur proposée par l'INSERT. Choisi
+        // pour la lisibilité, et parce que la requête s'écrit de la même façon
+        // en SQLite et en PostgreSQL. Répéter $2…$6 marche aussi : depuis la
+        // v1.50.2, db.js réordonne les paramètres selon le numéro de chaque $n
+        // (cf. dbPlaceholders.test.js). Le défaut D1, une mise à jour d'agent
+        // impossible, date d'avant cette version.
         await pool.query(
             'INSERT INTO ai_agents (id, name, system_instruction, response_format, provider_override, model_override) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(id) DO UPDATE SET name = excluded.name, system_instruction = excluded.system_instruction, response_format = excluded.response_format, provider_override = excluded.provider_override, model_override = excluded.model_override',
             [agentId, name, system_instruction, response_format || 'text', provider_override || null, model_override || null]
