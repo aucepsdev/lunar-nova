@@ -43,13 +43,12 @@ describe('fonctionnalités — migration v13 et synchronisation', () => {
         expect((await lignes())['notes-vocales']).toBe(0);
     });
 
-    // Décisions du mainteneur du 28/11 (ticket #30, étude §1, relecture de
-    // #39), écrites en dur : le test précédent suit le catalogue, il ne verrait
-    // pas une valeur par défaut changée par erreur.
-    it('base neuve, décisions du 28/11 : mcp-externe et verification-numeros actifs, agents-cli-locaux éteint', async () => {
+    // Décisions du mainteneur du 28/11 (ticket #30, étude §1), écrites en dur :
+    // le test précédent suit le catalogue, il ne verrait pas une valeur par
+    // défaut changée par erreur.
+    it('base neuve, décisions du 28/11 : mcp-externe actif, agents-cli-locaux éteint', async () => {
         const etat = await lignes();
         expect(etat['mcp-externe']).toBe(1);
-        expect(etat['verification-numeros']).toBe(1);
         expect(etat['agents-cli-locaux']).toBe(0);
     });
 
@@ -77,16 +76,13 @@ describe('fonctionnalités — migration v13 et synchronisation', () => {
     });
 
     // Une mise à jour ne retire rien (§3 du ticket) : les valeurs par défaut
-    // ne s'appliquent qu'aux installations neuves. verification-numeros est
-    // vérifiée ici aussi : si sa valeur par défaut passait un jour à « éteinte »,
-    // une installation existante devrait la garder (liste figée de la v13).
-    it('installation 1.52.x : mcp-externe, agents-cli-locaux et verification-numeros restent actifs', async () => {
+    // ne s'appliquent qu'aux installations neuves.
+    it('installation 1.52.x : mcp-externe et agents-cli-locaux restent actifs', async () => {
         await revenirEnV12('off');
         expect(await db.__rerunInitDBForTests()).toBe(true);
         const etat = await lignes();
         expect(etat['mcp-externe']).toBe(1);
         expect(etat['agents-cli-locaux']).toBe(1);
-        expect(etat['verification-numeros']).toBe(1);
     });
 
     it('un redémarrage ne modifie jamais une ligne existante', async () => {

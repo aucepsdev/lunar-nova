@@ -465,8 +465,8 @@ async function runInitDB() {
 // (agents-cli-locaux, décision du 28/11) reste donc active chez l'utilisateur
 // qui met à jour : elle marchait avant la v13.
 const FONCTIONNALITES_V13 = [
-    'noyau', 'crm', 'verification-numeros', 'commandes', 'notes-vocales', 'prospection',
-    'pipeline', 'agents', 'redaction', 'devis-factures', 'analyses', 'taches',
+    'noyau', 'crm', 'commandes', 'notes-vocales', 'prospection', 'pipeline', 'agents',
+    'redaction', 'devis-factures', 'analyses', 'taches',
     'mcp-externe', 'agents-cli-locaux'
 ];
 
