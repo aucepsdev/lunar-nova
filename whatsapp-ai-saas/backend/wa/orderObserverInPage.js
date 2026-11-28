@@ -121,10 +121,12 @@ function observerInPage(sel) {
 
             // Un vocal sortant est envoyé par le commerçant lui-même :
             // ce n'est pas une commande, et la transcrire coûterait
-            // ~30 s de processeur pour rien.
-            const idEl = (row.matches && row.matches('[data-id]')) ? row : row.querySelector('[data-id]');
-            const dataId = idEl ? (idEl.getAttribute('data-id') || '') : '';
-            if (dataId.startsWith('true_')) return true;
+            // ~30 s de processeur pour rien. Le sens vient de sel.sens
+            // (waSelectors.js). Jusqu'au 28/11/2026, seul le préfixe true_
+            // du data-id était lu. Mesuré ce jour-là : le préfixe n'existe
+            // plus dans WhatsApp Web. Déduit, non observé sur un vrai vocal :
+            // un vocal sortant n'était donc plus reconnu comme tel.
+            if (sel.sens(row) === 'out') return true;
 
             const convEl = row.querySelector('[data-testid^="conv-msg-"]');
             const messageId = convEl ? convEl.getAttribute('data-testid').replace('conv-msg-', '') : '';

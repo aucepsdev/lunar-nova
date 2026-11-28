@@ -81,6 +81,18 @@ const KEYS = {
     copilotLegacyMessage: { mode: 'any', defaults: ['div.message-in', 'div.message-out'] },
     copilotMessageText: { mode: 'any', defaults: ['.selectable-text', '.copyable-text', 'span[dir="ltr"]'] },
     copilotMessageTime: { mode: 'any', defaults: ['[data-icon="msg-time"]', '.copyable-text[data-pre-plain-text]', '[data-pre-plain-text]'] },
+    // Sens d'un message (envoyé par le compte ou reçu), lu par `sens()` dans
+    // inPageSelectors. Mesuré le 28/11/2026 sur une session réelle :
+    // les data-id ne portent plus le préfixe true_/false_, et les classes
+    // message-in/message-out ont disparu. Sur 12 messages (7 dans une
+    // conversation client, 5 dans la conversation avec soi-même) :
+    // - pointe de bulle : tail-out sur les envoyés, tail-in sur les reçus,
+    //   mais seulement au premier message d'une série du même auteur ;
+    // - un svg dans msg-meta (coche d'envoi ou de lecture) sur les 7 envoyés,
+    //   et sur aucun des 5 reçus.
+    messageTailOut: { mode: 'any', defaults: ['[data-icon="tail-out"]', '[data-testid="tail-out"]'] },
+    messageTailIn: { mode: 'any', defaults: ['[data-icon="tail-in"]', '[data-testid="tail-in"]'] },
+    messageOutStatus: { mode: 'any', defaults: ['[data-testid="msg-meta"] svg'] },
 };
 
 // Défense en profondeur : les sélecteurs voyagent en arguments, jamais
@@ -396,7 +408,48 @@ function inPageSelectors(paquet) {
         }
         return null;
     };
-    return { S, F, first };
+    const contient = (el, cle) => !!(S[cle] && el.querySelector(S[cle]));
+
+    // Sens propre d'une ligne, sans regarder ses voisines : 'out', 'in' ou null.
+    const sensPropre = (ligne) => {
+        // Anciens marqueurs (WhatsApp Web avant le 28/11/2026), liés au code :
+        // classes message-out/message-in, préfixe true_/false_ du data-id.
+        const classe = ligne.closest('.message-out, .message-in') || ligne.querySelector('.message-out, .message-in');
+        if (classe) return classe.classList.contains('message-out') ? 'out' : 'in';
+        const ancien = /^(true|false)_/;
+        const porteur = [ligne.closest('[data-id]'), ...ligne.querySelectorAll('[data-id]')]
+            .find((e) => e && ancien.test(e.getAttribute('data-id')));
+        if (porteur) return porteur.getAttribute('data-id').startsWith('true_') ? 'out' : 'in';
+        // Pointe de bulle, posée au premier message d'une série.
+        if (contient(ligne, 'messageTailOut')) return 'out';
+        if (contient(ligne, 'messageTailIn')) return 'in';
+        return null;
+    };
+
+    /**
+     * Sens d'un message : 'out' (envoyé par le compte), 'in' (reçu) ou null.
+     * 1. marqueurs propres à la ligne (anciens marqueurs, puis pointe de bulle) ;
+     * 2. sinon, le sens du message précédent : WhatsApp ne met la pointe
+     *    qu'au premier message d'une série du même auteur ;
+     * 3. sinon (début de la fenêtre affichée), une coche dans msg-meta, qui
+     *    ne figure que sur les messages envoyés.
+     * L'étape 2 passe avant la coche : une étoile ou un autre pictogramme
+     * dans msg-meta d'un message reçu ne le fait pas passer pour envoyé.
+     */
+    const sens = (noeud) => {
+        if (!noeud || !noeud.closest) return null;
+        const ligne = (S.messageRow && noeud.closest(S.messageRow)) || noeud;
+        const propre = sensPropre(ligne);
+        if (propre) return propre;
+        const panneau = (S.copilotMainPanel && ligne.closest(S.copilotMainPanel)) || document;
+        const lignes = S.messageRow ? Array.from(panneau.querySelectorAll(S.messageRow)) : [];
+        for (let i = lignes.indexOf(ligne) - 1; i >= 0; i--) {
+            const precedent = sensPropre(lignes[i]);
+            if (precedent) return precedent;
+        }
+        return contient(ligne, 'messageOutStatus') ? 'out' : null;
+    };
+    return { S, F, first, sens };
 }
 
 /** Exécuté DANS la page : comptages du contrôle de santé (voir reportHealth). */
