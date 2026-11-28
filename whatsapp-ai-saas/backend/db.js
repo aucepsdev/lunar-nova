@@ -491,14 +491,26 @@ function requetesFonctionnalitesInstallationExistante() {
  * par une mise à jour). Une ligne existante n'est jamais modifiée : changer
  * une valeur par défaut dans le catalogue ne touche que les nouvelles
  * installations.
+ *
+ * Une seule transaction (règle 5.7 de l'étude : pas de régression au
+ * démarrage). Mesuré le 28/11 sur un fichier SQLite temporaire, médiane de 7
+ * essais : 13 insertions validées une à une coûtent 58 ms sur une base neuve,
+ * contre 7 ms en une transaction ; au redémarrage, 3 ms contre 2.
  */
 async function synchroniserFonctionnalites(client) {
     const { fonctionnalites } = require('./featuresCatalogue');
-    for (const f of fonctionnalites) {
-        await client.query(
-            'INSERT OR IGNORE INTO features (id, enabled) VALUES ($1, $2)',
-            [f.id, f.noyau || f.defaut ? 1 : 0]
-        );
+    await client.query('BEGIN');
+    try {
+        for (const f of fonctionnalites) {
+            await client.query(
+                'INSERT OR IGNORE INTO features (id, enabled) VALUES ($1, $2)',
+                [f.id, f.noyau || f.defaut ? 1 : 0]
+            );
+        }
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw err;
     }
 }
 
