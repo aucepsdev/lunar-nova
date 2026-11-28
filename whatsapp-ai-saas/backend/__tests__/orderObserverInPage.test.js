@@ -124,6 +124,32 @@ describe('conversation ouverte (observateur de mutations)', () => {
         expect(vocaux).toEqual([]);
     });
 
+    // Format mesuré le 28/11/2026 sur une session réelle : data-id sans préfixe
+    // true_/false_, sens donné par la pointe de bulle (premier message d'une
+    // série) ou par la coche dans msg-meta (messages envoyés seulement).
+    const vocal2026 = ({ id, cote, pointe = false, coche = false }) => `
+        <div role="row"><div data-id="${id}" data-testid="conv-msg-${id}"><div data-virtualized="false">
+          ${pointe ? `<span data-testid="tail-${cote}" data-icon="tail-${cote}"></span>` : ''}
+          <div data-testid="msg-container"><span data-testid="ptt-status"></span><span>0:12</span>
+            <div data-testid="msg-meta"><span>10:05</span>${coche ? '<span><svg><title>wds-ic-read</title></svg></span>' : ''}</div>
+          </div>
+        </div></div></div>`;
+
+    it('format 2026 : un vocal sortant (pointe ou coche) est ignoré, un vocal entrant est transcrit', async () => {
+        document.body.innerHTML = '<div id="pane-side"></div><div id="main"><header><span title="Kouassi">Kouassi</span></header><div id="liste"></div></div>';
+        lancer();
+        const liste = document.getElementById('liste');
+        liste.insertAdjacentHTML('beforeend', vocal2026({ id: '3EB0OUT1', cote: 'out', pointe: true, coche: true }));
+        await attendreMutations();
+        liste.insertAdjacentHTML('beforeend', vocal2026({ id: '3EB0OUT2', cote: 'out', coche: true }));
+        await attendreMutations();
+        expect(vocaux).toEqual([]);
+
+        liste.insertAdjacentHTML('beforeend', vocal2026({ id: '3EB0IN1', cote: 'in', pointe: true }));
+        await attendreMutations();
+        expect(vocaux).toEqual([{ contact: 'Kouassi', id: '3EB0IN1' }]);
+    });
+
     it('n\'attache pas deux fois l\'observateur', () => {
         document.body.innerHTML = '<div id="pane-side"></div>';
         lancer();
